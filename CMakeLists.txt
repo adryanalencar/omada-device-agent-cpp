@@ -91,6 +91,21 @@ install(TARGETS openomada-agent-native
 
 if(OPENOMADA_BUILD_TESTS)
     enable_testing()
+    add_test(NAME openomada-native-version COMMAND openomada-agent-native --version)
+    add_test(
+        NAME openomada-native-check-config-disabled
+        COMMAND openomada-agent-native --check-config --config ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/openomada-disabled.config
+    )
+    add_test(
+        NAME openomada-native-dry-run-enabled
+        COMMAND openomada-agent-native --dry-run --config ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/openomada-enabled.config
+    )
+    add_test(NAME openomada-native-check-config-env COMMAND openomada-agent-native --check-config)
+    set_tests_properties(
+        openomada-native-check-config-env
+        PROPERTIES ENVIRONMENT "OPENOMADA_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/openomada-disabled.config"
+    )
+
     add_executable(openomada-core-tests
         tests/test_core.cpp
     )

@@ -520,6 +520,33 @@ void parse_client_config(AccessPointConfigUpdate* update, json_object* raw, std:
     }
 }
 
+void parse_portal_authed_users(AccessPointConfigUpdate* update, json_object* raw, std::string* error) {
+    for (json_object* item : iter_items(raw, "EVENT_PORTAL_AUTH authedUsers", error)) {
+        if (error != nullptr && !error->empty()) {
+            return;
+        }
+        if (!require_object(item, "EVENT_PORTAL_AUTH authedUsers item", error)) {
+            return;
+        }
+        auto result = optional_int(protocol::object_member(item, "rst"));
+        if (!result.has_value() || (*result != 0 && *result != 1)) {
+            continue;
+        }
+        json_object* raw_mac = protocol::object_member(item, "mac");
+        if (raw_mac == nullptr) {
+            raw_mac = protocol::object_member(item, "clientMac");
+        }
+        auto mac = required_mac(raw_mac, "EVENT_PORTAL_AUTH.authedUsers.mac", error);
+        if (!mac.has_value()) {
+            return;
+        }
+        ClientAuthConfig config;
+        config.client_mac = *mac;
+        config.unauthenticated = *result == 0;
+        update->client_configs.push_back(config);
+    }
+}
+
 void parse_client_operations(AccessPointConfigUpdate* update, json_object* raw, const char* source_key, std::string* error) {
     for (json_object* item : iter_items(raw, source_key, error)) {
         if (error != nullptr && !error->empty()) {
@@ -753,6 +780,30 @@ ConfigParseResult parse_set_request_json(std::string_view message_json) noexcept
         return fail("SET_REQUEST body must be a JSON object");
     }
     return parse_body_object(body);
+}
+
+ConfigParseResult parse_portal_auth_request_json(std::string_view message_json) noexcept {
+    auto document = protocol::JsonDocument::parse(message_json);
+    if (!document.valid()) {
+        return fail("EVENT_PORTAL_AUTH must be a JSON object");
+    }
+    json_object* body = protocol::ecsp_body(document.get());
+    if (!is_object(body)) {
+        return fail("EVENT_PORTAL_AUTH body must be a JSON object");
+    }
+
+    ConfigParseResult result;
+    result.ok = true;
+    json_object* header = protocol::object_member(document.get(), "header");
+    if (is_object(header)) {
+        result.update.sequence_id = optional_int(protocol::object_member(header, "seq"));
+    }
+    std::string error;
+    parse_portal_authed_users(&result.update, protocol::object_member(body, "authedUsers"), &error);
+    if (!error.empty()) {
+        return fail(error);
+    }
+    return result;
 }
 
 std::string describe_config_update(const AccessPointConfigUpdate& update) {

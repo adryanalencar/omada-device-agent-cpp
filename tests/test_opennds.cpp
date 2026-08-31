@@ -1,11 +1,15 @@
+#include <algorithm>
 #include <cstdlib>
 #include <iostream>
 #include <string>
+#include <string_view>
+#include <utility>
 #include <vector>
 
 #include "openomada/application/configuration.hpp"
 #include "openomada/domain/mac_address.hpp"
 #include "openomada/openwrt/opennds.hpp"
+#include "openomada/platform/capabilities.hpp"
 #include "openomada/protocol/json.hpp"
 
 namespace {
@@ -29,6 +33,54 @@ bool contains(const std::vector<std::string>& values, const std::string& expecte
 
 bool command_exists(const std::vector<std::vector<std::string>>& commands, const std::vector<std::string>& expected) {
     return std::find(commands.begin(), commands.end(), expected) != commands.end();
+}
+
+struct CommandCall {
+    std::vector<std::string> command{};
+    std::string input{};
+};
+
+class RecordingOpenNdsExecutor final : public openomada::openwrt::OpenNdsExecutor {
+public:
+    openomada::openwrt::OpenNdsCommandResult default_result{true, 0, {}, {}};
+    std::vector<std::pair<std::vector<std::string>, openomada::openwrt::OpenNdsCommandResult>> scripted{};
+    std::vector<CommandCall> calls{};
+
+    openomada::openwrt::OpenNdsCommandResult run(
+        const std::vector<std::string>& command,
+        std::string_view input = {}
+    ) override {
+        calls.push_back({command, std::string(input)});
+        for (auto it = scripted.begin(); it != scripted.end(); ++it) {
+            if (it->first == command) {
+                auto result = it->second;
+                scripted.erase(it);
+                return result;
+            }
+        }
+        return default_result;
+    }
+};
+
+openomada::platform::PlatformCapabilities portal_caps() {
+    openomada::platform::PlatformCapabilities capabilities;
+    capabilities.supports_portal = true;
+    capabilities.tools.opennds = true;
+    capabilities.tools.ndsctl = true;
+    return capabilities;
+}
+
+bool call_exists(const std::vector<CommandCall>& calls, const std::vector<std::string>& expected) {
+    return std::find_if(calls.begin(), calls.end(), [&](const CommandCall& call) {
+        return call.command == expected;
+    }) != calls.end();
+}
+
+const CommandCall* find_call(const std::vector<CommandCall>& calls, const std::vector<std::string>& expected) {
+    const auto it = std::find_if(calls.begin(), calls.end(), [&](const CommandCall& call) {
+        return call.command == expected;
+    });
+    return it == calls.end() ? nullptr : &*it;
 }
 
 void test_builds_opennds_policy_from_portal_free_policy() {
@@ -202,6 +254,93 @@ void test_maps_opennds_json_clients_to_portal_overlay_state() {
     require(result.clients[1].tx_bytes == 567, "upload counter");
 }
 
+void test_executes_opennds_plan_and_ignores_quiet_delete_failures() {
+    openomada::openwrt::OpenNdsApplyPlan plan;
+    plan.ok = true;
+    plan.changed = true;
+    plan.themespec = "#!/bin/sh\n";
+    plan.commands = {
+        {"uci", "-q", "delete", "opennds.@opennds[0].walledgarden_fqdn_list"},
+        {"write-file", openomada::openwrt::kOpenOmadaThemeSpecPath},
+        {"uci", "commit", "opennds"},
+    };
+
+    RecordingOpenNdsExecutor executor;
+    executor.scripted.push_back({
+        {"uci", "-q", "delete", "opennds.@opennds[0].walledgarden_fqdn_list"},
+        {false, 1, {}, "Entry not found"},
+    });
+
+    const auto result = openomada::openwrt::execute_opennds_apply_plan(plan, executor);
+
+    require(result.ok, result.error.c_str());
+    require(result.changed, "execution changed");
+    require(result.command_count == 3, "three commands attempted");
+    const CommandCall* write = find_call(executor.calls, {"write-file", openomada::openwrt::kOpenOmadaThemeSpecPath});
+    require(write != nullptr, "write-file command");
+    require(write->input == "#!/bin/sh\n", "ThemeSpec passed as input");
+}
+
+void test_reconciler_applies_portal_policy_and_client_auth_commands() {
+    const auto parsed = openomada::application::parse_config_body_json(R"({
+        "portalFreePolicyConfig": {
+            "urlPortalFreePolicy": [{"url": "mediabeach.com.br/portal/c00e9a43"}]
+        },
+        "portalConfigList": [{
+            "externalPortalServer": "https://mediabeach.com.br/portal/c00e9a43",
+            "siteId": "ffff16a3ab739b57bd5247ec2ff8b",
+            "ssidList": ["Ubatuba - Wifi Grátis"]
+        }],
+        "clientConfig": [
+            {"clientMac": "AA-BB-CC-DD-EE-FF", "unauth": false},
+            {"clientMac": "02-00-00-00-00-02", "unauth": true}
+        ]
+    })");
+    require(parsed.ok, parsed.error.c_str());
+
+    RecordingOpenNdsExecutor executor;
+    executor.scripted.push_back({
+        {"ndsctl", "json", "02:00:00:00:00:02"},
+        {true, 0, R"({"clients":{"02:00:00:00:00:02":{"ip":"192.168.1.123","state":"Authenticated"}}})", {}},
+    });
+
+    openomada::openwrt::OpenNdsReconcilerOptions options;
+    options.controller_host = "192.0.2.1";
+    options.device_mac = mac("02:11:22:33:44:55");
+    openomada::openwrt::OpenNdsPortalReconciler reconciler(portal_caps(), executor, options);
+
+    const auto result = reconciler.apply(parsed.update);
+
+    require(result.ok, result.error.c_str());
+    require(result.changed, "reconciler changed");
+    require(call_exists(executor.calls, {"write-file", openomada::openwrt::kOpenOmadaThemeSpecPath}), "ThemeSpec written");
+    require(call_exists(executor.calls, {"ndsctl", "auth", "aa:bb:cc:dd:ee:ff", "", "", "", "", "", ""}), "portal auth command");
+    require(call_exists(executor.calls, {"ndsctl", "json", "02:00:00:00:00:02"}), "portal client lookup");
+    require(call_exists(executor.calls, {"ndsctl", "deauth", "02:00:00:00:00:02"}), "portal deauth command");
+    require(call_exists(executor.calls, {"conntrack", "-D", "-s", "192.168.1.123"}), "conntrack source flushed");
+    require(call_exists(executor.calls, {"conntrack", "-D", "-d", "192.168.1.123"}), "conntrack dest flushed");
+}
+
+void test_reconciler_rejects_portal_without_opennds_runtime() {
+    const auto parsed = openomada::application::parse_config_body_json(R"({
+        "clientConfig": [{"clientMac": "AA-BB-CC-DD-EE-FF", "unauth": false}]
+    })");
+    require(parsed.ok, parsed.error.c_str());
+
+    RecordingOpenNdsExecutor executor;
+    openomada::openwrt::OpenNdsReconcilerOptions options;
+    options.device_mac = mac("02:11:22:33:44:55");
+    openomada::platform::PlatformCapabilities capabilities;
+    capabilities.supports_portal = true;
+    openomada::openwrt::OpenNdsPortalReconciler reconciler(capabilities, executor, options);
+
+    const auto result = reconciler.apply(parsed.update);
+
+    require(!result.ok, "portal without openNDS rejected");
+    require(result.error.find("openNDS") != std::string::npos, "openNDS error");
+    require(executor.calls.empty(), "no command attempted");
+}
+
 } // namespace
 
 int main() {
@@ -211,6 +350,9 @@ int main() {
     test_builds_themespec_with_omada_external_portal_parameters();
     test_builds_opennds_apply_plan_with_gatewayfqdn_disabled();
     test_maps_opennds_json_clients_to_portal_overlay_state();
+    test_executes_opennds_plan_and_ignores_quiet_delete_failures();
+    test_reconciler_applies_portal_policy_and_client_auth_commands();
+    test_reconciler_rejects_portal_without_opennds_runtime();
     std::cout << "openomada-opennds-tests passed\n";
     return 0;
 }

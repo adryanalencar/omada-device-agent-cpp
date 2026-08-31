@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -66,12 +67,18 @@ public:
     openomada::application::ConfigurationApplyResult result{true, true, {}};
     std::size_t calls{0};
     std::size_t wlan_count{0};
+    std::size_t client_config_count{0};
+    std::optional<bool> first_client_unauthenticated{};
 
     openomada::application::ConfigurationApplyResult apply(
         const openomada::application::AccessPointConfigUpdate& update
     ) override {
         ++calls;
         wlan_count = update.wlans.size();
+        client_config_count = update.client_configs.size();
+        first_client_unauthenticated = update.client_configs.empty()
+            ? std::nullopt
+            : update.client_configs[0].unauthenticated;
         return result;
     }
 };
@@ -272,6 +279,109 @@ void test_get_notify_and_forget_managed_requests() {
     }
 }
 
+void test_portal_auth_request_applies_client_config_and_replies() {
+    RecordingTransport transport;
+    RecordingApplier applier;
+    auto settings = fixture_settings();
+    auto state = managed_state();
+    const std::string payload = request(
+        openomada::protocol::MessageType::EventPortalAuth,
+        R"({"authedUsers":[{"mac":"AA-BB-CC-DD-EE-FF","rst":1}]})"
+    );
+
+    const auto result = openomada::lifecycle::handle_managed_request(
+        transport,
+        settings,
+        &state,
+        payload,
+        &applier,
+        1780000000000ULL
+    );
+
+    require(result.ok, result.error.c_str());
+    require(result.action == openomada::lifecycle::ManagedRequestAction::PortalAuthResponse, "portal auth action");
+    require(result.response_sent, "portal auth response sent");
+    require(applier.calls == 1, "portal auth applier called");
+    require(applier.client_config_count == 1, "one client config");
+    require(applier.first_client_unauthenticated.has_value() && !*applier.first_client_unauthenticated, "rst=1 authenticates client");
+    require(sent_type(transport.sent[0]) == openomada::protocol::to_underlying(openomada::protocol::MessageType::EventPortalAuthResponse), "EVENT_PORTAL_AUTH_RESPONSE type");
+    require(sent_body_int(transport.sent[0], "err") == 0, "portal auth ok");
+    require(state.config_version.value_or(0) == 2, "portal auth does not advance config version");
+    require(state.sequence_id.value_or(0) == 11, "portal auth does not advance config sequence");
+}
+
+void test_portal_auth_request_rst_zero_deauthenticates_client() {
+    RecordingTransport transport;
+    RecordingApplier applier;
+    auto settings = fixture_settings();
+    auto state = managed_state();
+    const std::string payload = request(
+        openomada::protocol::MessageType::EventPortalAuth,
+        R"({"authedUsers":{"clientMac":"AA-BB-CC-DD-EE-FF","rst":0}})"
+    );
+
+    const auto result = openomada::lifecycle::handle_managed_request(
+        transport,
+        settings,
+        &state,
+        payload,
+        &applier
+    );
+
+    require(result.ok, result.error.c_str());
+    require(applier.calls == 1, "portal deauth applier called");
+    require(applier.first_client_unauthenticated.has_value() && *applier.first_client_unauthenticated, "rst=0 deauthenticates client");
+    require(sent_body_int(transport.sent[0], "err") == 0, "portal deauth ok");
+}
+
+void test_portal_auth_request_without_applier_returns_error_response() {
+    RecordingTransport transport;
+    auto settings = fixture_settings();
+    auto state = managed_state();
+    const std::string payload = request(
+        openomada::protocol::MessageType::EventPortalAuth,
+        R"({"authedUsers":[{"mac":"AA-BB-CC-DD-EE-FF","rst":1}]})"
+    );
+
+    const auto result = openomada::lifecycle::handle_managed_request(
+        transport,
+        settings,
+        &state,
+        payload
+    );
+
+    require(result.ok, result.error.c_str());
+    require(result.response_sent, "portal auth error response sent");
+    require(result.error.find("platform applier") != std::string::npos, "missing applier error retained");
+    require(sent_type(transport.sent[0]) == openomada::protocol::to_underlying(openomada::protocol::MessageType::EventPortalAuthResponse), "portal auth error response type");
+    require(sent_body_int(transport.sent[0], "err") == 1, "portal auth error code");
+}
+
+void test_portal_auth_without_header_seq_applies_without_reply() {
+    RecordingTransport transport;
+    RecordingApplier applier;
+    auto settings = fixture_settings();
+    auto state = managed_state();
+    const std::string payload = request(
+        openomada::protocol::MessageType::EventPortalAuth,
+        R"({"authedUsers":[{"mac":"AA-BB-CC-DD-EE-FF","rst":1}]})",
+        false
+    );
+
+    const auto result = openomada::lifecycle::handle_managed_request(
+        transport,
+        settings,
+        &state,
+        payload,
+        &applier
+    );
+
+    require(result.ok, result.error.c_str());
+    require(applier.calls == 1, "portal auth no-seq applier called");
+    require(!result.response_sent, "portal auth without header seq sends no reply");
+    require(transport.sent.empty(), "no-seq transport empty");
+}
+
 void test_unknown_managed_message_is_ignored() {
     RecordingTransport transport;
     auto settings = fixture_settings();
@@ -296,6 +406,10 @@ int main() {
     test_actionable_set_response_advances_when_platform_applier_succeeds();
     test_actionable_set_response_keeps_version_when_platform_applier_fails();
     test_get_notify_and_forget_managed_requests();
+    test_portal_auth_request_applies_client_config_and_replies();
+    test_portal_auth_request_rst_zero_deauthenticates_client();
+    test_portal_auth_request_without_applier_returns_error_response();
+    test_portal_auth_without_header_seq_applies_without_reply();
     test_unknown_managed_message_is_ignored();
     std::cout << "openomada-managed-request-tests passed\n";
     return 0;

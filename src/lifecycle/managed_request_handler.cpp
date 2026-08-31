@@ -26,6 +26,8 @@ std::optional<protocol::MessageType> message_type_from_value(std::uint32_t value
         return protocol::MessageType::NotifyRequest;
     case protocol::to_underlying(protocol::MessageType::NotifyRequestV2):
         return protocol::MessageType::NotifyRequestV2;
+    case protocol::to_underlying(protocol::MessageType::EventPortalAuth):
+        return protocol::MessageType::EventPortalAuth;
     case protocol::to_underlying(protocol::MessageType::ForgetRequest):
         return protocol::MessageType::ForgetRequest;
     case protocol::to_underlying(protocol::MessageType::ForgetRequestNoReset):
@@ -98,6 +100,8 @@ const char* to_string(ManagedRequestAction action) noexcept {
         return "notify-no-reply";
     case ManagedRequestAction::ForgetResponse:
         return "forget-response";
+    case ManagedRequestAction::PortalAuthResponse:
+        return "portal-auth-response";
     }
     return "unknown";
 }
@@ -227,6 +231,58 @@ ManagedRequestResult handle_managed_request(
             return result;
         }
         const std::string response = application::build_notify_reply_json(
+            settings,
+            payload,
+            state->controller_id,
+            reply,
+            timestamp_ms
+        );
+        const auto send_status = send_payload(transport, response);
+        if (!send_status.ok) {
+            return failed(*request_type, send_status.error);
+        }
+        result.response_sent = true;
+        return result;
+    }
+
+    if (*request_type == protocol::MessageType::EventPortalAuth) {
+        std::int64_t errcode = application::kConfigOk;
+        std::string error;
+        auto parsed = application::parse_portal_auth_request_json(payload);
+        application::ConfigurationApplyResult applied{true, false, {}};
+        if (!parsed.ok) {
+            errcode = application::kConfigError;
+            error = std::move(parsed.error);
+        } else if (!parsed.update.client_configs.empty()) {
+            if (applier == nullptr) {
+                errcode = application::kConfigError;
+                error = "EVENT_PORTAL_AUTH requires a platform applier";
+            } else {
+                applied = applier->apply(parsed.update);
+                if (!applied.ok) {
+                    errcode = application::kConfigError;
+                    error = applied.error.empty() ? "portal auth applier rejected update" : applied.error;
+                }
+            }
+        }
+
+        const auto reply = application::build_portal_auth_reply_body_json(payload, errcode);
+        if (!reply.ok) {
+            return failed(*request_type, reply.error);
+        }
+        result.ok = true;
+        result.action = ManagedRequestAction::PortalAuthResponse;
+        result.response_type = protocol::MessageType::EventPortalAuthResponse;
+        result.sequence_id = reply.sequence_id;
+        result.error = std::move(error);
+        result.configuration_applied = errcode == application::kConfigOk &&
+                                       parsed.ok &&
+                                       !parsed.update.client_configs.empty();
+        result.configuration_changed = result.configuration_applied && applied.changed;
+        if (!reply.should_reply) {
+            return result;
+        }
+        const std::string response = application::build_portal_auth_reply_json(
             settings,
             payload,
             state->controller_id,

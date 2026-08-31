@@ -9,6 +9,7 @@
 #include <cstdlib>
 #include <json-c/json.h>
 #include <set>
+#include <utility>
 
 namespace openomada::openwrt {
 namespace {
@@ -370,7 +371,136 @@ std::uint64_t uint_counter(json_object* object, const char* key) noexcept {
     return static_cast<std::uint64_t>(*parsed);
 }
 
+bool quiet_uci_delete(const std::vector<std::string>& command) noexcept {
+    return command.size() >= 4 &&
+           command[0] == "uci" &&
+           command[1] == "-q" &&
+           command[2] == "delete";
+}
+
+std::string command_error(
+    const std::vector<std::string>& command,
+    const OpenNdsCommandResult& result,
+    std::string_view fallback
+) {
+    if (!result.error.empty()) {
+        return result.error;
+    }
+    if (!result.output.empty()) {
+        return result.output;
+    }
+    std::string out(fallback);
+    if (!command.empty()) {
+        out += ": ";
+        for (std::size_t index = 0; index < command.size(); ++index) {
+            if (index != 0) {
+                out.push_back(' ');
+            }
+            out += command[index];
+        }
+    }
+    return out;
+}
+
+bool has_portal_policy_update(const application::AccessPointConfigUpdate& update) noexcept {
+    return update.portal_free_policy.has_value() || !update.portal_configs.empty();
+}
+
+bool has_portal_client_update(const application::AccessPointConfigUpdate& update) noexcept {
+    for (const auto& item : update.client_configs) {
+        if (item.unauthenticated.has_value()) {
+            return true;
+        }
+    }
+    return false;
+}
+
+application::ConfigurationApplyResult portal_error(std::string error) {
+    return {false, false, std::move(error)};
+}
+
+std::optional<std::string> opennds_client_ip_for_mac(std::string_view payload_json, const domain::MacAddress& mac) {
+    const auto parsed = opennds_clients_from_json(payload_json);
+    if (!parsed.ok) {
+        return std::nullopt;
+    }
+    for (const auto& client : parsed.clients) {
+        if (client.mac == mac && valid_ipv4_address(client.ipv4)) {
+            return client.ipv4;
+        }
+    }
+    return std::nullopt;
+}
+
 } // namespace
+
+OpenNdsPortalReconciler::OpenNdsPortalReconciler(
+    const platform::PlatformCapabilities& capabilities,
+    OpenNdsExecutor& executor,
+    OpenNdsReconcilerOptions options
+) : capabilities_(capabilities), executor_(executor), options_(std::move(options)) {}
+
+application::ConfigurationApplyResult OpenNdsPortalReconciler::apply(
+    const application::AccessPointConfigUpdate& update
+) {
+    const bool policy_update = has_portal_policy_update(update);
+    const bool client_update = has_portal_client_update(update);
+    if (!policy_update && !client_update) {
+        return {true, false, {}};
+    }
+    if (!capabilities_.supports_portal) {
+        return portal_error("portal configuration requested but platform capability is disabled");
+    }
+    if (!capabilities_.tools.opennds || !capabilities_.tools.ndsctl) {
+        return portal_error("portal configuration requires openNDS and ndsctl");
+    }
+
+    bool changed = false;
+    if (policy_update) {
+        auto policy = opennds_portal_policy_from_omada_config(
+            update,
+            options_.controller_host,
+            options_.device_mac,
+            options_.site_id,
+            options_.site_name
+        );
+        const auto plan = build_opennds_apply_plan(policy);
+        const auto applied = execute_opennds_apply_plan(plan, executor_);
+        if (!applied.ok) {
+            return portal_error(applied.error.empty() ? "openNDS policy apply failed" : applied.error);
+        }
+        changed = changed || applied.changed;
+    }
+
+    for (const auto& item : update.client_configs) {
+        if (!item.unauthenticated.has_value()) {
+            continue;
+        }
+        const std::string mac = item.client_mac.normalized();
+        if (*item.unauthenticated) {
+            std::optional<std::string> client_ip;
+            const auto lookup = executor_.run({"ndsctl", "json", mac});
+            if (lookup.ok && !lookup.output.empty()) {
+                client_ip = opennds_client_ip_for_mac(lookup.output, item.client_mac);
+            }
+            const auto deauthed = executor_.run({"ndsctl", "deauth", mac});
+            if (!deauthed.ok) {
+                return portal_error(command_error({"ndsctl", "deauth", mac}, deauthed, "ndsctl deauth failed"));
+            }
+            if (options_.flush_conntrack_on_deauth && client_ip.has_value()) {
+                (void)executor_.run({"conntrack", "-D", "-s", *client_ip});
+                (void)executor_.run({"conntrack", "-D", "-d", *client_ip});
+            }
+        } else {
+            const auto authed = executor_.run({"ndsctl", "auth", mac, "", "", "", "", "", ""});
+            if (!authed.ok) {
+                return portal_error(command_error({"ndsctl", "auth", mac}, authed, "ndsctl auth failed"));
+            }
+        }
+        changed = true;
+    }
+    return {true, changed, {}};
+}
 
 OpenNdsPortalPolicy opennds_portal_policy_from_free_policy(
     const std::optional<application::PortalFreePolicy>& policy
@@ -542,6 +672,39 @@ OpenNdsClientParseResult opennds_clients_from_json(std::string_view payload_json
         return lhs.mac.normalized() < rhs.mac.normalized();
     });
     result.ok = true;
+    return result;
+}
+
+OpenNdsExecutionResult execute_opennds_apply_plan(
+    const OpenNdsApplyPlan& plan,
+    OpenNdsExecutor& executor
+) {
+    OpenNdsExecutionResult result;
+    if (!plan.ok) {
+        result.error = plan.error.empty() ? "openNDS plan is invalid" : plan.error;
+        return result;
+    }
+    if (!plan.changed) {
+        result.ok = true;
+        return result;
+    }
+    for (const auto& command : plan.commands) {
+        if (command.empty()) {
+            continue;
+        }
+        const std::string_view input = command[0] == "write-file" ? std::string_view(plan.themespec) : std::string_view();
+        const auto command_result = executor.run(command, input);
+        ++result.command_count;
+        if (!command_result.ok) {
+            if (quiet_uci_delete(command)) {
+                continue;
+            }
+            result.error = command_error(command, command_result, "openNDS command failed");
+            return result;
+        }
+    }
+    result.ok = true;
+    result.changed = true;
     return result;
 }
 

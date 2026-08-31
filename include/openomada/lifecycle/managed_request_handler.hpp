@@ -20,6 +20,7 @@ enum class ManagedRequestAction {
     NotifyReply,
     NotifyNoReply,
     ForgetResponse,
+    PortalAuthResponse,
 };
 
 struct ManagedRequestResult {

@@ -195,6 +195,7 @@ struct ConfigParseResult {
 
 ConfigParseResult parse_config_body_json(std::string_view body_json) noexcept;
 ConfigParseResult parse_set_request_json(std::string_view message_json) noexcept;
+ConfigParseResult parse_portal_auth_request_json(std::string_view message_json) noexcept;
 
 std::string describe_config_update(const AccessPointConfigUpdate& update);
 

@@ -82,6 +82,10 @@ target_compile_options(openomada-agent-native PRIVATE
     $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
 )
 
+install(TARGETS openomada-agent-native
+    RUNTIME DESTINATION sbin
+)
+
 if(OPENOMADA_BUILD_TESTS)
     enable_testing()
     add_executable(openomada-core-tests
@@ -209,4 +213,15 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-opennds-tests COMMAND openomada-opennds-tests)
+
+    add_executable(openomada-openwrt-package-tests
+        tests/test_openwrt_package.cpp
+    )
+    target_compile_definitions(openomada-openwrt-package-tests PRIVATE
+        OPENOMADA_SOURCE_DIR="${CMAKE_CURRENT_SOURCE_DIR}"
+    )
+    target_compile_options(openomada-openwrt-package-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-package-tests COMMAND openomada-openwrt-package-tests)
 endif()

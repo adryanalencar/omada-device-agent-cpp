@@ -10,7 +10,7 @@ ARMv7, AArch64, 16 MB flash where practical, and 32-64 MB RAM devices.
 
 ## Current Scope
 
-Phase 6 is still an incremental port, not a replacement daemon:
+Phase 7 is still an incremental port, not a replacement daemon:
 
 - project/build skeleton;
 - tiny CLI entry point;
@@ -48,18 +48,36 @@ Phase 6 is still an incremental port, not a replacement daemon:
 - composite platform applier support so UCI and openNDS adapters can both
   reconcile one managed `SET_REQUEST`;
 - characterization tests against Python-observed fixtures;
-- OpenWrt package scaffolding.
+- OpenWrt package scaffolding with `procd` init, `/etc/config/openomada`,
+  openNDS package dependency, SDK staging helper, and resource benchmark helper.
 
 The lifecycle code can build and serialize discovery, PRE_CONNECT,
 DEVICE_VERIFY, SYSTEM_VERIFY, DEVICE_NEGOTIATION and INIT_SYNC messages, and
 tests verify the happy path plus auth failure cases against scripted controller
-frames. The Phase 6 code also persists reconnect metadata, schedules the first
+frames. The Phase 7 code also persists reconnect metadata, schedules the first
 reply-requested inform and later fire-and-forget informs, models direct
 reconnect exhaustion before managed rediscovery, parses known AP configuration
 payloads, sends defensive managed-mode replies, and can route actionable
 configuration through injected platform appliers. It is not yet wired into a
 long-running daemon, a live `libuci`/`libubus` backend, real process execution
 for those injected interfaces, or real OpenWrt process startup.
+
+## OpenWrt Package
+
+Stage the native package into an OpenWrt SDK with:
+
+```sh
+./scripts/stage_openwrt_package.sh /path/to/openwrt-sdk/package/openomada
+```
+
+Build it from the SDK root with:
+
+```sh
+make package/openomada/compile V=s
+```
+
+The package depends on ordinary OpenWrt components: `libstdcpp`, `libjson-c`,
+`libopenssl`, `opennds`, and `conntrack`.
 
 Unsupported protocol families such as `REPORT`, firmware upgrade, mesh, remote
 terminal, switch/gateway/OLT profiles, and unvalidated WLAN/security modes must

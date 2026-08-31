@@ -14,6 +14,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(openomada_core STATIC
+    src/application/configuration.cpp
     src/application/inform.cpp
     src/crypto/ecsp_auth.cpp
     src/crypto/hash.cpp
@@ -128,4 +129,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-reconnect-tests COMMAND openomada-reconnect-tests)
+
+    add_executable(openomada-configuration-tests
+        tests/test_configuration.cpp
+    )
+    target_link_libraries(openomada-configuration-tests PRIVATE openomada_core)
+    target_compile_options(openomada-configuration-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-configuration-tests COMMAND openomada-configuration-tests)
 endif()

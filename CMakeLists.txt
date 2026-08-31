@@ -34,6 +34,7 @@ add_library(openomada_core STATIC
     src/openwrt/uci.cpp
     src/openwrt/telemetry.cpp
     src/openwrt/opennds.cpp
+    src/openwrt/process.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -234,4 +235,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-daemon-config-tests COMMAND openomada-daemon-config-tests)
+
+    add_executable(openomada-openwrt-process-tests
+        tests/test_openwrt_process.cpp
+    )
+    target_link_libraries(openomada-openwrt-process-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-process-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-process-tests COMMAND openomada-openwrt-process-tests)
 endif()

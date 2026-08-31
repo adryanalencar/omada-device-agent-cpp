@@ -6,6 +6,7 @@ profile that matters.
 | Build/Target | Stripped Binary | Shared Libraries | Idle RSS | Adoption RSS | SET RSS | INFORM RSS | Startup Time |
 | --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
 | macOS arm64 Phase 1 `MinSizeRel -fno-exceptions -fno-rtti` | 34,472 bytes | `/usr/lib/libc++.1.dylib`, `/usr/lib/libSystem.B.dylib` | N/A | N/A | N/A | N/A | Not measured |
+| macOS arm64 Phase 2 `MinSizeRel -fno-exceptions -fno-rtti` | 34,480 bytes | `libjson-c.5.dylib`, `libssl.3.dylib`, `libcrypto.3.dylib`, `/usr/lib/libc++.1.dylib`, `/usr/lib/libSystem.B.dylib` | N/A | N/A | N/A | N/A | Not measured |
 
 Recommended commands:
 
@@ -20,6 +21,12 @@ readelf -d build-small/openomada-agent-native
 On OpenWrt, measure daemon RSS from `/proc/<pid>/status` and avoid protocol
 trace logging during steady-state measurements.
 
-Phase 1 does not run a long-lived daemon yet, so idle/adoption/SET/INFORM RSS
-measurements would be misleading. The current measurement is only a host build
-sanity check for the skeleton plus core protocol/auth primitives.
+Phase 2 still does not run a long-lived daemon. Idle/adoption/SET/INFORM RSS
+measurements would be misleading until the lifecycle is connected to the CLI
+process and persistence/event-loop work lands in Phase 3.
+
+The current macOS binary size is also limited as a resource signal: the CLI does
+not yet reference every library object, so the linker can remove much of the
+static core from the executable. Real OpenWrt package measurements must be
+refreshed after the daemon entry point uses discovery, TLS adoption, managed
+state, INFORM, and platform adapters.

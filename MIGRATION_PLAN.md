@@ -69,14 +69,13 @@ Initial dependencies are deliberately conservative:
 
 - C++17 and CMake.
 - CommonCrypto on macOS development builds.
-- OpenSSL/libcrypto on non-Apple builds for Phase 1 MD5/SHA256 fixtures.
+- OpenSSL for TLS transport and secure random generation.
+- OpenSSL/libcrypto on non-Apple builds for MD5/SHA256 fixtures.
+- `json-c` for the ECSP JSON boundary.
 - No Boost, Qt, Node.js, Go runtime, or embedded Python.
-- No large JSON framework in Phase 1; raw JSON strings are retained only at the
-  ECSP boundary until `json-c` integration is added.
 
 Planned OpenWrt-oriented dependencies:
 
-- `json-c` for small JSON parsing/building.
 - `libuci` instead of spawning `uci`.
 - `libubus`/`libubox`/`uloop` instead of spawning `ubus` and for the event loop.
 - The smallest target TLS/crypto stack already selected by the OpenWrt image
@@ -117,4 +116,3 @@ MIPS/ARM portability, OpenWrt feed availability, and duplicated functionality.
   provider; crypto/TLS backend selection must remain replaceable.
 - `REPORT`, upgrade, remote terminal, mesh, switch/gateway/OLT profiles, and
   unvalidated security modes remain unsupported until proven.
-

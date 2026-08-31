@@ -10,15 +10,24 @@ ARMv7, AArch64, 16 MB flash where practical, and 32-64 MB RAM devices.
 
 ## Current Scope
 
-Phase 1 is intentionally small:
+Phase 2 is still an incremental port, not a replacement daemon:
 
 - project/build skeleton;
 - tiny CLI entry point;
 - protocol/domain utility types;
 - ECSP framing and constants;
 - ECSP V2 auth primitives;
+- small `json-c` ECSP boundary helpers;
+- native UDP discovery transport and PRE_ADOPT parser;
+- native TCP/TLS length-prefixed frame transport;
+- V2 initial adoption handshake through `INIT_SYNC_RESULT`;
 - characterization tests against Python-observed fixtures;
 - OpenWrt package scaffolding.
+
+The lifecycle code can build and serialize discovery, PRE_CONNECT,
+DEVICE_VERIFY, SYSTEM_VERIFY, DEVICE_NEGOTIATION and INIT_SYNC messages, and
+tests verify the happy path plus auth failure cases against scripted controller
+frames. It is not yet wired into a long-running daemon.
 
 Unsupported protocol families such as `REPORT`, firmware upgrade, mesh, remote
 terminal, switch/gateway/OLT profiles, and unvalidated WLAN/security modes must
@@ -34,4 +43,3 @@ remain unadvertised until independently implemented and tested.
 - Never log or persist Device Account passwords.
 - Prefer OpenWrt-native libraries (`libuci`, `libubus`, `libubox`, `json-c`,
   target TLS/crypto stack) over large bundled dependencies.
-

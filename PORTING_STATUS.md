@@ -2,15 +2,16 @@
 
 | Area | Python Reference | C++ Native | Tested | Notes |
 | --- | --- | --- | --- | --- |
-| Build skeleton | Yes | Initial | Yes | CMake and CLI only |
+| Build skeleton | Yes | Initial | Yes | CMake and CLI only; lifecycle is not wired into daemon yet |
 | MAC policy | Yes | Initial | Yes | Internal colon-lower, Omada upper-hyphen |
-| ECSP frame codec | Yes | Initial | Yes | `uint32_be` + UTF-8 JSON payload; JSON parsing is still boundary work |
+| ECSP frame codec | Yes | Initial | Yes | `uint32_be` + UTF-8 JSON payload |
 | ECSP message constants | Yes | Initial | Yes | Preserve numeric values |
 | ECSP V2 auth hashes | Yes | Initial | Yes | `cipherType=5`, MD5 + SHA256 uppercase hex |
-| UDP discovery | Yes | Missing | No | Phase 2 |
-| TLS/TCP management | Yes | Missing | No | Phase 2 |
-| Adoption/verification | Yes | Missing | No | Phase 2 |
-| Negotiation/init sync | Yes | Missing | No | Phase 2 |
+| ECSP JSON boundary | Yes | Initial | Yes | `json-c` parser/helpers; raw JSON remains at protocol boundary |
+| UDP discovery | Yes | Initial | Yes | Discovery payload builder, UDP send/receive transport, PRE_ADOPT parser |
+| TLS/TCP management | Yes | Initial | Build only | TCP RAII socket plus OpenSSL frame transport; no live controller test yet |
+| Adoption/verification | Yes | Initial | Yes | V2 PRE_CONNECT, DEVICE_VERIFY, SYSTEM_VERIFY against scripted frames |
+| Negotiation/init sync | Yes | Initial | Yes | DEVICE_NEGOTIATION and INIT_SYNC_RESULT against scripted frames |
 | Managed state | Yes | Missing | No | Phase 3 |
 | INFORM | Partial | Missing | No | Phase 3 |
 | SET/configVersion | Partial | Missing | No | Phase 4 |

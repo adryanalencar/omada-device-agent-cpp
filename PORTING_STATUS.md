@@ -21,8 +21,11 @@
 | Defensive GET | Partial | Initial | Yes | Returns `GET_RESPONSE` with `unsupportedKeys` for requested keys |
 | Defensive NOTIFY | Partial | Initial | Yes | Supports reply/no-reply handling and V2 reply type selection |
 | FORGET | Yes | Initial | Yes | Sends `FORGET_RESPONSE`/`FORGET_RESPONSE_NO_RESET` and marks managed state/session for clearing |
-| OpenWrt UCI WLAN | Partial | Missing | No | Phase 5 |
-| hostapd/ubus telemetry | Partial | Missing | No | Phase 5 |
+| OpenWrt capability detection | Partial | Initial | Yes | Models tool availability, conservative feature flags, radio bands, openNDS detection, and `iw list` AP-interface limits |
+| OpenWrt UCI WLAN | Partial | Initial | Yes | Builds validated UCI batch plans for radio, WLAN, WPA2/WPA3 policy checks, SSID VLAN, management VLAN, and Wi-Fi reload through an injected executor |
+| Managed SET applier routing | Partial | Initial | Yes | Actionable SET can advance `configVersion` only when an injected platform applier succeeds; failure keeps local version |
+| hostapd/ubus telemetry | Partial | Initial | Yes | Parses `network.wireless status` and `hostapd.* get_clients` JSON into `wSettings_*`, `ssidStats_*`, `radioTraffic_*`, and client state |
+| DHCP/stale client filtering | Partial | Initial | Yes | Parses dnsmasq lease text; hostapd associated clients remain the active source of truth and DHCP only enriches matching MACs |
 | openNDS portal | Partial | Missing | No | Phase 6 |
 | REPORT | Not implemented | Not implemented | No | Do not fake support |
 | Firmware upgrade | Not implemented | Not implemented | No | Do not fake support |

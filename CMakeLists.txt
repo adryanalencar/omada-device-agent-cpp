@@ -14,6 +14,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(openomada_core STATIC
+    src/application/client_state.cpp
     src/application/configuration.cpp
     src/application/configuration_exchange.cpp
     src/application/inform.cpp
@@ -28,11 +29,14 @@ add_library(openomada_core STATIC
     src/lifecycle/managed_session.cpp
     src/lifecycle/managed_request_handler.cpp
     src/lifecycle/reconnect.cpp
+    src/openwrt/uci.cpp
+    src/openwrt/telemetry.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
     src/protocol/json.cpp
     src/persistence/session_state_repository.cpp
+    src/platform/capabilities.cpp
     src/transport/socket.cpp
     src/transport/tls_client.cpp
     src/transport/udp_discovery.cpp
@@ -114,6 +118,15 @@ if(OPENOMADA_BUILD_TESTS)
     )
     add_test(NAME openomada-inform-tests COMMAND openomada-inform-tests)
 
+    add_executable(openomada-client-state-tests
+        tests/test_client_state.cpp
+    )
+    target_link_libraries(openomada-client-state-tests PRIVATE openomada_core)
+    target_compile_options(openomada-client-state-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-client-state-tests COMMAND openomada-client-state-tests)
+
     add_executable(openomada-managed-session-tests
         tests/test_managed_session.cpp
     )
@@ -158,4 +171,31 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-managed-request-tests COMMAND openomada-managed-request-tests)
+
+    add_executable(openomada-platform-capabilities-tests
+        tests/test_platform_capabilities.cpp
+    )
+    target_link_libraries(openomada-platform-capabilities-tests PRIVATE openomada_core)
+    target_compile_options(openomada-platform-capabilities-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-platform-capabilities-tests COMMAND openomada-platform-capabilities-tests)
+
+    add_executable(openomada-openwrt-uci-tests
+        tests/test_openwrt_uci.cpp
+    )
+    target_link_libraries(openomada-openwrt-uci-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-uci-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-uci-tests COMMAND openomada-openwrt-uci-tests)
+
+    add_executable(openomada-openwrt-telemetry-tests
+        tests/test_openwrt_telemetry.cpp
+    )
+    target_link_libraries(openomada-openwrt-telemetry-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-telemetry-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-telemetry-tests COMMAND openomada-openwrt-telemetry-tests)
 endif()

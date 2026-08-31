@@ -10,7 +10,7 @@ ARMv7, AArch64, 16 MB flash where practical, and 32-64 MB RAM devices.
 
 ## Current Scope
 
-Phase 4 is still an incremental port, not a replacement daemon:
+Phase 5 is still an incremental port, not a replacement daemon:
 
 - project/build skeleton;
 - tiny CLI entry point;
@@ -28,18 +28,26 @@ Phase 4 is still an incremental port, not a replacement daemon:
   families;
 - protocol-correct `SET_RESPONSE`, `GET_RESPONSE`, defensive NOTIFY replies,
   FORGET responses, and config-version bookkeeping;
+- OpenWrt capability modeling, including conservative tool/capability flags and
+  `iw list` AP-interface capacity parsing;
+- OpenWrt UCI WLAN/radio/SSID VLAN/management VLAN reconciliation planning and
+  an injected executor interface for applying a rendered batch plus Wi-Fi reload;
+- hostapd/ubus-style wireless telemetry parsing for `wSettings_*`,
+  `ssidStats_*`, `radioTraffic_*`, active wireless clients, DHCP enrichment, and
+  stale-client filtering;
 - characterization tests against Python-observed fixtures;
 - OpenWrt package scaffolding.
 
 The lifecycle code can build and serialize discovery, PRE_CONNECT,
 DEVICE_VERIFY, SYSTEM_VERIFY, DEVICE_NEGOTIATION and INIT_SYNC messages, and
 tests verify the happy path plus auth failure cases against scripted controller
-frames. The Phase 4 code also persists reconnect metadata, schedules the first
+frames. The Phase 5 code also persists reconnect metadata, schedules the first
 reply-requested inform and later fire-and-forget informs, models direct
 reconnect exhaustion before managed rediscovery, parses known AP configuration
-payloads, and sends defensive managed-mode replies without acknowledging
-unsupported or unapplied actionable configuration. It is not yet wired into a
-long-running daemon or OpenWrt applier.
+payloads, sends defensive managed-mode replies, and can route actionable
+configuration through an injected platform applier. It is not yet wired into a
+long-running daemon, a live `libuci`/`libubus` backend, or real OpenWrt process
+startup.
 
 Unsupported protocol families such as `REPORT`, firmware upgrade, mesh, remote
 terminal, switch/gateway/OLT profiles, and unvalidated WLAN/security modes must

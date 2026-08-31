@@ -5,6 +5,7 @@
 #include <vector>
 
 #include "openomada/application/settings.hpp"
+#include "openomada/application/configuration_applier.hpp"
 #include "openomada/domain/mac_address.hpp"
 #include "openomada/lifecycle/managed_request_handler.hpp"
 #include "openomada/lifecycle/session.hpp"
@@ -58,6 +59,21 @@ public:
     }
 
     std::vector<std::string> sent;
+};
+
+class RecordingApplier final : public openomada::application::ConfigurationApplier {
+public:
+    openomada::application::ConfigurationApplyResult result{true, true, {}};
+    std::size_t calls{0};
+    std::size_t wlan_count{0};
+
+    openomada::application::ConfigurationApplyResult apply(
+        const openomada::application::AccessPointConfigUpdate& update
+    ) override {
+        ++calls;
+        wlan_count = update.wlans.size();
+        return result;
+    }
 };
 
 std::string request(openomada::protocol::MessageType type, const std::string& body, bool include_seq = true) {
@@ -148,6 +164,65 @@ void test_actionable_set_response_does_not_advance_without_platform_applier() {
     require(state.sequence_id.value_or(0) == 11, "state sequence not advanced");
 }
 
+void test_actionable_set_response_advances_when_platform_applier_succeeds() {
+    RecordingTransport transport;
+    RecordingApplier applier;
+    auto settings = fixture_settings();
+    auto state = managed_state();
+    const std::string payload = request(
+        openomada::protocol::MessageType::SetRequest,
+        R"({"sequenceId":14,"configVersionInc":1,"ssid_2G":{"ssid":[{"ssidName":"guest"}]}})"
+    );
+
+    const auto result = openomada::lifecycle::handle_managed_request(
+        transport,
+        settings,
+        &state,
+        payload,
+        &applier,
+        1780000000000ULL
+    );
+
+    require(result.ok, result.error.c_str());
+    require(applier.calls == 1, "applier called");
+    require(applier.wlan_count == 1, "applier receives WLAN update");
+    require(result.configuration_applied, "configuration applied flag");
+    require(result.configuration_changed, "configuration changed flag");
+    require(sent_body_int(transport.sent[0], "errcode") == 0, "SET_RESPONSE ok");
+    require(sent_body_int(transport.sent[0], "configVersion") == 3, "version advanced");
+    require(state.config_version.value_or(0) == 3, "state config advanced");
+    require(state.sequence_id.value_or(0) == 14, "state sequence advanced");
+}
+
+void test_actionable_set_response_keeps_version_when_platform_applier_fails() {
+    RecordingTransport transport;
+    RecordingApplier applier;
+    applier.result = {false, false, "uci rejected update"};
+    auto settings = fixture_settings();
+    auto state = managed_state();
+    const std::string payload = request(
+        openomada::protocol::MessageType::SetRequest,
+        R"({"sequenceId":14,"configVersionInc":1,"ssid_2G":{"ssid":[{"ssidName":"guest"}]}})"
+    );
+
+    const auto result = openomada::lifecycle::handle_managed_request(
+        transport,
+        settings,
+        &state,
+        payload,
+        &applier,
+        1780000000000ULL
+    );
+
+    require(result.ok, result.error.c_str());
+    require(applier.calls == 1, "failing applier called");
+    require(result.error == "uci rejected update", "applier error retained");
+    require(sent_body_int(transport.sent[0], "errcode") == 1, "SET_RESPONSE error");
+    require(sent_body_int(transport.sent[0], "configVersion") == 2, "version kept");
+    require(state.config_version.value_or(0) == 2, "state config unchanged");
+    require(state.sequence_id.value_or(0) == 11, "state sequence unchanged");
+}
+
 void test_get_notify_and_forget_managed_requests() {
     auto settings = fixture_settings();
 
@@ -218,6 +293,8 @@ void test_unknown_managed_message_is_ignored() {
 int main() {
     test_passive_set_response_updates_managed_config_version();
     test_actionable_set_response_does_not_advance_without_platform_applier();
+    test_actionable_set_response_advances_when_platform_applier_succeeds();
+    test_actionable_set_response_keeps_version_when_platform_applier_fails();
     test_get_notify_and_forget_managed_requests();
     test_unknown_managed_message_is_ignored();
     std::cout << "openomada-managed-request-tests passed\n";

@@ -43,6 +43,7 @@ struct WirelessSecurity {
     std::optional<std::int64_t> psk_version{};
     std::optional<std::int64_t> psk_cipher{};
     bool psk_configured{false};
+    std::string psk_key{};
     std::string radius_profile_id{};
     bool radius_auth{false};
     bool radius_accounting{false};

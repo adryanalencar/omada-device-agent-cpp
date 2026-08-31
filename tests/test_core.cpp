@@ -5,9 +5,14 @@
 
 #include "openomada/crypto/ecsp_auth.hpp"
 #include "openomada/crypto/hash.hpp"
+#include "openomada/application/settings.hpp"
+#include "openomada/domain/device_profile.hpp"
 #include "openomada/domain/mac_address.hpp"
+#include "openomada/lifecycle/session.hpp"
+#include "openomada/protocol/ecsp_builders.hpp"
 #include "openomada/protocol/ecsp_message.hpp"
 #include "openomada/protocol/frame_codec.hpp"
+#include "openomada/protocol/json.hpp"
 #include "openomada/protocol/message_type.hpp"
 
 namespace {
@@ -116,6 +121,94 @@ void test_auth_fixtures() {
     );
 }
 
+openomada::application::AgentSettings fixture_settings() {
+    openomada::application::AgentSettings settings;
+    settings.controller_host = "omada.example.test";
+    settings.mac = must_parse_mac("02:11:22:33:44:55");
+    settings.device_name = "OpenOmada-AP";
+    settings.model = "EAP110";
+    settings.model_version = "4.0";
+    settings.hardware_version = "4.0";
+    settings.firmware_version = "5.0.4";
+    settings.device_ip = "192.0.2.10";
+    settings.controller_id = "0123456789abcdef0123456789abcdef";
+    settings.site_id = "0123456789abcdef01234567";
+    settings.device_username = "lab";
+    settings.device_password = "test-password";
+    return settings;
+}
+
+void test_lifecycle_transitions() {
+    using openomada::lifecycle::ControllerSession;
+    using openomada::lifecycle::LifecycleState;
+    using openomada::lifecycle::can_transition;
+    using openomada::lifecycle::to_string;
+
+    ControllerSession session;
+    require(to_string(session.state) == std::string("disconnected"), "initial lifecycle state");
+    require(session.transition(LifecycleState::Discovering), "disconnected -> discovering");
+    require(session.transition(LifecycleState::Adopting), "discovering -> adopting");
+    require(session.transition(LifecycleState::Verifying), "adopting -> verifying");
+    require(session.transition(LifecycleState::Negotiating), "verifying -> negotiating");
+    require(session.transition(LifecycleState::Managed), "negotiating -> managed");
+    require(!can_transition(LifecycleState::Managed, LifecycleState::Adopting), "invalid transition rejected");
+}
+
+void test_json_boundary_helpers() {
+    using openomada::protocol::JsonDocument;
+    using openomada::protocol::ecsp_body;
+    using openomada::protocol::ecsp_header_error;
+    using openomada::protocol::ecsp_header_seq;
+    using openomada::protocol::ecsp_header_type;
+    using openomada::protocol::json_string;
+    using openomada::protocol::object_member;
+
+    auto doc = JsonDocument::parse(R"({"header":{"type":1048576,"seq":7},"body":{"username":"lab"}})");
+    require(doc.valid(), "JSON document parses");
+    require(ecsp_header_type(doc.get()).value_or(0) == 1048576, "header type parsed");
+    require(ecsp_header_seq(doc.get()).value_or(0) == 7, "header seq parsed");
+    require(ecsp_header_error(doc.get()) == 0, "missing error defaults to zero");
+    require(json_string(object_member(ecsp_body(doc.get()), "username")).value_or("") == "lab", "body string parsed");
+    require(!JsonDocument::parse("[1,2,3]").valid(), "non-object JSON rejected");
+}
+
+void test_phase2_message_builders() {
+    using openomada::domain::AccessPointProfile;
+    using openomada::protocol::build_device_negotiation_json;
+    using openomada::protocol::build_discovery_json;
+    using openomada::protocol::build_init_sync_result_json;
+    using openomada::protocol::build_preconnect_json;
+
+    const auto settings = fixture_settings();
+    const AccessPointProfile profile(settings);
+
+    const std::string discovery = build_discovery_json(settings, profile, 1, false, 1234);
+    require(discovery.find(R"("type":1)") != std::string::npos, "discovery type");
+    require(discovery.find(R"("dest":"0123456789abcdef01234567")") != std::string::npos, "site-scoped discovery dest");
+    require(discovery.find(R"("controllerId":"0123456789abcdef0123456789abcdef")") != std::string::npos, "controller id in discovery");
+    require(discovery.find(R"("destOmadacId":"0123456789abcdef01234567")") != std::string::npos, "site id in controllerSetting");
+    require(discovery.find(R"("isFactory":true)") != std::string::npos, "factory discovery");
+    require(discovery.find(R"("mainMac":"02-11-22-33-44-55")") != std::string::npos, "Omada mainMac");
+
+    const std::string rediscovery = build_discovery_json(settings, profile, 1, true, 1234);
+    require(rediscovery.find(R"("isFactory":false)") != std::string::npos, "managed rediscovery is not factory");
+
+    const std::string preconnect = build_preconnect_json(settings, profile, 2, settings.controller_id, true, 1234);
+    require(preconnect.find(R"("type":3)") != std::string::npos, "preconnect type");
+    require(preconnect.find(R"("rebuild":1)") != std::string::npos, "managed reconnect rebuild shape");
+    require(preconnect.find(R"("isFactory":false)") != std::string::npos, "managed preconnect not factory");
+
+    const std::string negotiation = build_device_negotiation_json(settings, profile, 4, settings.controller_id, 7, 1234);
+    require(negotiation.find(R"("type":1048580)") != std::string::npos, "device negotiation type");
+    require(negotiation.find(R"("configVersion":7)") != std::string::npos, "persisted config version");
+    require(negotiation.find(R"("components_v2":{"system":"2.0")") != std::string::npos, "conservative components");
+    require(negotiation.find(R"("ip":)") == std::string::npos, "adoption deviceInfo omits ip");
+
+    const std::string init_sync = build_init_sync_result_json(settings, 5, settings.controller_id, 1234);
+    require(init_sync.find(R"("type":1048582)") != std::string::npos, "init sync type");
+    require(init_sync.find(R"("body")") == std::string::npos, "init sync omits body");
+}
+
 } // namespace
 
 int main() {
@@ -123,7 +216,9 @@ int main() {
     test_message_types();
     test_message_builder_and_frame_codec();
     test_auth_fixtures();
+    test_lifecycle_transitions();
+    test_json_boundary_helpers();
+    test_phase2_message_builders();
     std::cout << "openomada-core-tests passed\n";
     return 0;
 }
-

@@ -7,6 +7,7 @@ project(openomada_native
 )
 
 option(OPENOMADA_BUILD_TESTS "Build native unit tests" ON)
+option(OPENOMADA_ENABLE_TLS "Build OpenSSL TLS transport" ON)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -15,9 +16,13 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(openomada_core STATIC
     src/crypto/ecsp_auth.cpp
     src/crypto/hash.cpp
+    src/domain/device_profile.cpp
     src/domain/mac_address.cpp
+    src/lifecycle/session.cpp
+    src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
+    src/protocol/json.cpp
 )
 
 target_include_directories(openomada_core
@@ -36,6 +41,10 @@ else()
     target_compile_definitions(openomada_core PRIVATE OPENOMADA_USE_OPENSSL=1)
     target_link_libraries(openomada_core PUBLIC OpenSSL::Crypto)
 endif()
+
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(JSONC REQUIRED IMPORTED_TARGET json-c)
+target_link_libraries(openomada_core PUBLIC PkgConfig::JSONC)
 
 add_executable(openomada-agent-native
     src/cli/main.cpp

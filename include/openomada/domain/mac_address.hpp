@@ -10,6 +10,8 @@ namespace openomada::domain {
 
 class MacAddress {
 public:
+    MacAddress() noexcept = default;
+
     static std::optional<MacAddress> parse(std::string_view text) noexcept;
 
     const std::array<std::uint8_t, 6>& bytes() const noexcept { return bytes_; }
@@ -32,4 +34,3 @@ private:
 };
 
 } // namespace openomada::domain
-

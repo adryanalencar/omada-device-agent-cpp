@@ -23,6 +23,7 @@ add_library(openomada_core STATIC
     src/lifecycle/session.cpp
     src/lifecycle/adoption.cpp
     src/lifecycle/discovery.cpp
+    src/lifecycle/managed_session.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -108,4 +109,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-inform-tests COMMAND openomada-inform-tests)
+
+    add_executable(openomada-managed-session-tests
+        tests/test_managed_session.cpp
+    )
+    target_link_libraries(openomada-managed-session-tests PRIVATE openomada_core)
+    target_compile_options(openomada-managed-session-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-managed-session-tests COMMAND openomada-managed-session-tests)
 endif()

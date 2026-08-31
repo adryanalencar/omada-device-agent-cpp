@@ -188,6 +188,7 @@ void test_successful_v2_initial_sync_sequence() {
     require(result.username == "lab", "username learned");
     require(result.config_version.value_or(0) == 7, "configVersion captured");
     require(result.sequence_id.value_or(0) == 9, "sequenceId captured");
+    require(result.last_seq == 5, "last ECSP seq captured");
     require(transport.sent.size() == 5, "five handshake messages sent");
     require(message_type(transport.sent[0]) == to_underlying(MessageType::PreConnectInfo), "sent PRE_CONNECT_INFO");
     require(message_type(transport.sent[1]) == to_underlying(MessageType::DeviceVerifyInfo), "sent DEVICE_VERIFY_INFO");

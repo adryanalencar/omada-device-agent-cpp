@@ -129,6 +129,7 @@ void test_managed_state_from_adoption_does_not_include_password_material() {
     adoption.username = "lab";
     adoption.config_version = 7;
     adoption.sequence_id = 9;
+    adoption.last_seq = 5;
 
     const auto state = openomada::lifecycle::managed_state_from_adoption(
         settings,

@@ -56,10 +56,14 @@ ReceivedMessage receive_until(
 bool send_or_fail(
     transport::FrameTransport& transport,
     std::string_view payload,
+    std::uint32_t seq,
     AdoptionResult* result
 ) {
     auto status = transport.send_payload(payload);
     if (status.ok) {
+        if (result != nullptr) {
+            result->last_seq = seq;
+        }
         return true;
     }
     if (result != nullptr) {
@@ -155,6 +159,7 @@ AdoptionResult run_v2_initial_sync(
                 options.managed_reconnect,
                 options.timestamp_ms
             ),
+            seq,
             &result
         )) {
         return result;
@@ -219,6 +224,7 @@ AdoptionResult run_v2_initial_sync(
                 random_system_key,
                 options.timestamp_ms
             ),
+            seq,
             &result
         )) {
         return result;
@@ -252,6 +258,7 @@ AdoptionResult run_v2_initial_sync(
     if (!send_or_fail(
             transport,
             protocol::build_system_verify_result_json(settings, seq, controller_id, options.timestamp_ms),
+            seq,
             &result
         )) {
         return result;
@@ -281,6 +288,7 @@ AdoptionResult run_v2_initial_sync(
                 negotiation_config_version,
                 options.timestamp_ms
             ),
+            seq,
             &result
         )) {
         return result;
@@ -301,6 +309,7 @@ AdoptionResult run_v2_initial_sync(
     if (!send_or_fail(
             transport,
             protocol::build_init_sync_result_json(settings, seq, controller_id, options.timestamp_ms),
+            seq,
             &result
         )) {
         return result;

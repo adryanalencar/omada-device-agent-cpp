@@ -48,6 +48,7 @@ struct AdoptionResult {
     std::string username{};
     std::optional<std::uint32_t> config_version{};
     std::optional<std::uint32_t> sequence_id{};
+    std::uint32_t last_seq{0};
 };
 
 const char* to_string(AdoptionError error) noexcept;
@@ -61,4 +62,3 @@ AdoptionResult run_v2_initial_sync(
 );
 
 } // namespace openomada::lifecycle
-

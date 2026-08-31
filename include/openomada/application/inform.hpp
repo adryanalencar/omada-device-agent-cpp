@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <vector>
 
 #include "openomada/application/settings.hpp"
 #include "openomada/domain/device_profile.hpp"
@@ -14,10 +15,16 @@ struct LanObservation {
     std::string port{"LAN"};
 };
 
+struct JsonBodyMember {
+    std::string key{};
+    std::string json{};
+};
+
 struct InformSnapshot {
     bool need_reply{false};
     std::uint64_t uptime_seconds{0};
     LanObservation lan{};
+    std::vector<JsonBodyMember> extra_body_members{};
 };
 
 class InformProvider {

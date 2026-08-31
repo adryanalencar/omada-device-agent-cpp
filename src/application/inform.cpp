@@ -65,7 +65,17 @@ std::string build_inform_body_json(
     body += std::to_string(snapshot.lan.duplex);
     body += ",\"port\":";
     body += quoted(snapshot.lan.port);
-    body += "}}";
+    body += "}";
+    for (const auto& member : snapshot.extra_body_members) {
+        if (member.key.empty() || member.json.empty()) {
+            continue;
+        }
+        body += ",";
+        body += quoted(member.key);
+        body += ":";
+        body += member.json;
+    }
+    body += "}";
     return body;
 }
 

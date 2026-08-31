@@ -30,6 +30,7 @@ add_library(openomada_core STATIC
     src/lifecycle/managed_request_handler.cpp
     src/lifecycle/reconnect.cpp
     src/openwrt/uci.cpp
+    src/openwrt/telemetry.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -188,4 +189,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-openwrt-uci-tests COMMAND openomada-openwrt-uci-tests)
+
+    add_executable(openomada-openwrt-telemetry-tests
+        tests/test_openwrt_telemetry.cpp
+    )
+    target_link_libraries(openomada-openwrt-telemetry-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-telemetry-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-telemetry-tests COMMAND openomada-openwrt-telemetry-tests)
 endif()

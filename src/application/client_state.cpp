@@ -4,6 +4,7 @@
 
 #include <algorithm>
 #include <cerrno>
+#include <cctype>
 #include <cstdlib>
 #include <map>
 #include <sstream>

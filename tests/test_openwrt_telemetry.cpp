@@ -169,6 +169,41 @@ void test_hostapd_augments_ssid_counts_and_radio_traffic() {
     require(openomada::protocol::json_int(openomada::protocol::object_member(item, "up")).value_or(-1) == 100, "SSID up");
 }
 
+void test_hostapd_augments_multiple_ssids_on_same_band_without_overwrite() {
+    const std::string status = R"({
+        "radio0": {
+            "config": {"channel": 6},
+            "interfaces": [
+                {"ifname": "phy0-ap0", "config": {"ssid": "guest"}},
+                {"ifname": "phy0-ap1", "config": {"ssid": "corp"}}
+            ]
+        }
+    })";
+    const std::vector<std::string> hostapd = {
+        R"({"clients":{"aa:bb:cc:dd:ee:01":{"bytes":{"rx":10,"tx":20},"packets":{"rx":1,"tx":2}}}})",
+        R"({"clients":{"aa:bb:cc:dd:ee:02":{"bytes":{"rx":30,"tx":40},"packets":{"rx":3,"tx":4}}}})",
+    };
+
+    const auto result = openomada::openwrt::openwrt_wireless_inform_from_status_and_hostapd_json(status, hostapd);
+
+    require(result.ok, result.error.c_str());
+    auto ssids = openomada::protocol::JsonDocument::parse("{\"items\":" + member_json(result.members, "ssidStats_2G") + "}");
+    require(ssids.valid(), "multi ssid stats parse");
+    auto* items = openomada::protocol::object_member(ssids.get(), "items");
+    require(json_object_array_length(items) == 2, "two SSID stats retained");
+    auto* first = json_object_array_get_idx(items, 0);
+    auto* second = json_object_array_get_idx(items, 1);
+    require(openomada::protocol::json_string(openomada::protocol::object_member(first, "ssid")).value_or("") == "guest", "guest retained");
+    require(openomada::protocol::json_string(openomada::protocol::object_member(second, "ssid")).value_or("") == "corp", "corp retained");
+
+    auto traffic = openomada::protocol::JsonDocument::parse(member_json(result.members, "radioTraffic_2G"));
+    require(traffic.valid(), "multi traffic parse");
+    require(openomada::protocol::json_int(openomada::protocol::object_member(traffic.get(), "tx")).value_or(-1) == 60, "traffic tx summed");
+    require(openomada::protocol::json_int(openomada::protocol::object_member(traffic.get(), "rx")).value_or(-1) == 40, "traffic rx summed");
+    require(openomada::protocol::json_int(openomada::protocol::object_member(traffic.get(), "txP")).value_or(-1) == 6, "traffic txP summed");
+    require(openomada::protocol::json_int(openomada::protocol::object_member(traffic.get(), "rxP")).value_or(-1) == 4, "traffic rxP summed");
+}
+
 void test_inform_body_accepts_openwrt_extra_members_and_clients() {
     openomada::application::AgentSettings settings;
     settings.mac = mac("02:11:22:33:44:55");
@@ -200,6 +235,7 @@ int main() {
     test_extracts_hostapd_interfaces_from_wireless_status();
     test_maps_hostapd_clients_to_wireless_client_state();
     test_hostapd_augments_ssid_counts_and_radio_traffic();
+    test_hostapd_augments_multiple_ssids_on_same_band_without_overwrite();
     test_inform_body_accepts_openwrt_extra_members_and_clients();
     std::cout << "openomada-openwrt-telemetry-tests passed\n";
     return 0;

@@ -330,6 +330,78 @@ std::string member_json(const std::vector<application::JsonBodyMember>& members,
     return {};
 }
 
+std::string merge_ssid_stats_array_json(std::string_view existing_json, const std::string& stats_json) {
+    std::vector<std::string> items;
+    std::string replacement_ssid;
+    protocol::JsonDocument stats = protocol::JsonDocument::parse(stats_json);
+    if (stats.valid()) {
+        replacement_ssid = optional_string_any(protocol::object_member(stats.get(), "ssid")).value_or("");
+    }
+
+    protocol::JsonDocument existing = protocol::JsonDocument::parse("{\"items\":" + std::string(existing_json.empty() ? "[]" : existing_json) + "}");
+    if (existing.valid()) {
+        auto* array = protocol::object_member(existing.get(), "items");
+        if (json_object_is_type(array, json_type_array)) {
+            const std::size_t count = json_object_array_length(array);
+            for (std::size_t index = 0; index < count; ++index) {
+                auto* item = json_object_array_get_idx(array, index);
+                if (!is_mapping(item)) {
+                    continue;
+                }
+                const std::string ssid = optional_string_any(protocol::object_member(item, "ssid")).value_or("");
+                if (!replacement_ssid.empty() && ssid == replacement_ssid) {
+                    continue;
+                }
+                const char* rendered = json_object_to_json_string_ext(item, JSON_C_TO_STRING_PLAIN);
+                if (rendered != nullptr) {
+                    items.emplace_back(rendered);
+                }
+            }
+        }
+    }
+    items.push_back(stats_json);
+    return array_json(items);
+}
+
+std::uint64_t object_uint(json_object* object, const char* key) noexcept {
+    auto value = optional_int_any(protocol::object_member(object, key));
+    if (!value.has_value() || *value < 0) {
+        return 0;
+    }
+    return static_cast<std::uint64_t>(*value);
+}
+
+std::string merge_radio_traffic_json(std::string_view existing_json, const std::string& addition_json) {
+    std::map<std::string, std::uint64_t> values;
+    for (const char* key : {"tx", "rx", "txP", "rxP", "txDP", "rxDP", "txEP", "rxEP", "txRP", "rxRP"}) {
+        values[key] = 0;
+    }
+    protocol::JsonDocument existing = protocol::JsonDocument::parse(existing_json.empty() ? "{}" : existing_json);
+    if (existing.valid()) {
+        for (auto& item : values) {
+            item.second += object_uint(existing.get(), item.first.c_str());
+        }
+    }
+    protocol::JsonDocument addition = protocol::JsonDocument::parse(addition_json);
+    if (addition.valid()) {
+        for (auto& item : values) {
+            item.second += object_uint(addition.get(), item.first.c_str());
+        }
+    }
+    return object_json({
+        {"tx", std::to_string(values["tx"])},
+        {"rx", std::to_string(values["rx"])},
+        {"txP", std::to_string(values["txP"])},
+        {"rxP", std::to_string(values["rxP"])},
+        {"txDP", std::to_string(values["txDP"])},
+        {"rxDP", std::to_string(values["rxDP"])},
+        {"txEP", std::to_string(values["txEP"])},
+        {"rxEP", std::to_string(values["rxEP"])},
+        {"txRP", std::to_string(values["txRP"])},
+        {"rxRP", std::to_string(values["rxRP"])},
+    });
+}
+
 std::string hostapd_ssid_stats_json(const std::string& ssid, json_object* hostapd_status) {
     auto* raw_clients = protocol::object_member(hostapd_status, "clients");
     if (!is_mapping(raw_clients)) {
@@ -608,11 +680,16 @@ WirelessInformResult openwrt_wireless_inform_from_status_and_hostapd_json(
             continue;
         }
         const auto stats_key = field_key("ssidStats", *interface.band);
-        set_member(payload.members, stats_key, array_json({stats}));
+        set_member(payload.members, stats_key, merge_ssid_stats_array_json(member_json(payload.members, stats_key), stats));
         const auto settings_key = field_key("wSettings", *interface.band);
         const std::string current_settings = member_json(payload.members, settings_key);
         set_member(payload.members, settings_key, merge_sta_num(current_settings.empty() ? "{}" : current_settings, hostapd_client_count(hostapd.get())));
-        set_member(payload.members, field_key("radioTraffic", *interface.band), radio_traffic_json(hostapd.get()));
+        const auto traffic_key = field_key("radioTraffic", *interface.band);
+        set_member(
+            payload.members,
+            traffic_key,
+            merge_radio_traffic_json(member_json(payload.members, traffic_key), radio_traffic_json(hostapd.get()))
+        );
     }
 
     return payload;

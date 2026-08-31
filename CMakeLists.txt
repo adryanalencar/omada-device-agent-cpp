@@ -14,6 +14,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(openomada_core STATIC
+    src/application/client_state.cpp
     src/application/configuration.cpp
     src/application/configuration_exchange.cpp
     src/application/inform.cpp
@@ -115,6 +116,15 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-inform-tests COMMAND openomada-inform-tests)
+
+    add_executable(openomada-client-state-tests
+        tests/test_client_state.cpp
+    )
+    target_link_libraries(openomada-client-state-tests PRIVATE openomada_core)
+    target_compile_options(openomada-client-state-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-client-state-tests COMMAND openomada-client-state-tests)
 
     add_executable(openomada-managed-session-tests
         tests/test_managed_session.cpp

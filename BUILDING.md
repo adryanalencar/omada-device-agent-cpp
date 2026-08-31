@@ -8,6 +8,12 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
+On macOS the Phase 1 crypto backend uses CommonCrypto. On non-Apple systems the
+current build requires OpenSSL/libcrypto development headers. This is a
+temporary backend choice for the protocol/auth characterization layer; later
+OpenWrt builds should select the smallest TLS/crypto stack already used by the
+target image where practical.
+
 ## Size-Oriented Build
 
 ```sh
@@ -35,4 +41,3 @@ The native runtime must be developed assuming:
 - explicit network byte order for ECSP frames;
 - no Boost, Qt, Node.js, Go runtime, or embedded Python;
 - small target flash/RAM budget.
-

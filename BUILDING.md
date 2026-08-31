@@ -8,12 +8,12 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The current Phase 7 build requires `json-c` and OpenSSL development files
+The current daemon-live build requires `json-c` and OpenSSL development files
 discoverable through `pkg-config`. On macOS the hash helpers still use
 CommonCrypto, but TLS transport and secure random generation use OpenSSL. On
 non-Apple systems OpenSSL is also used for MD5/SHA256.
 
-This is a pragmatic Phase 7 backend choice. Later OpenWrt builds may swap the
+This is a pragmatic initial backend choice. Later OpenWrt builds may swap the
 TLS/crypto backend if a target image already carries a smaller compatible stack.
 
 ## Size-Oriented Build
@@ -27,15 +27,16 @@ strip build-small/openomada-agent-native
 size build-small/openomada-agent-native
 ```
 
-The current Phase 7 code is written to avoid exceptions in runtime paths. Some
+The current code is written to avoid exceptions in runtime paths. Some
 toolchains may still require enabling exceptions for third-party/system library
 headers; that must be measured per OpenWrt target.
 
-Phase 7 adds package staging and resource measurement helpers, but the portable
-build still uses injected interfaces and JSON/text fixtures. A live OpenWrt
-backend should bind those interfaces to `libuci`, `libubus`, `uloop` and a
-small process/native executor instead of adding shell coupling to ECSP protocol
-code.
+The live daemon currently binds platform ports through a small argv-based
+process executor for `uci batch`, `wifi reload`, `ubus`, `ndsctl`, openNDS
+policy commands, and read-only capability probes. ECSP protocol code remains
+independent from those commands. A later OpenWrt optimization pass should
+replace the higher-churn process calls with `libuci`, `libubus`, `libubox` and
+`uloop` where that reduces flash/RAM cost on real targets.
 
 ## OpenWrt SDK
 
@@ -67,7 +68,7 @@ The native runtime must be developed assuming:
 
 ## Cross-Compilation Matrix
 
-| Target | Expected Path | Phase 7 Status |
+| Target | Expected Path | Daemon-Live Status |
 | --- | --- | --- |
 | x86_64 Linux/glibc | Native CMake | Prepared, not run in this macOS workspace |
 | OpenWrt x86_64/musl | OpenWrt SDK package build | Package staging prepared |
@@ -75,6 +76,6 @@ The native runtime must be developed assuming:
 | OpenWrt ARMv7/musl | OpenWrt SDK package build | Package staging prepared |
 | OpenWrt MIPS32/MIPSel musl | OpenWrt SDK package build | Package staging prepared; must be measured on target SDK |
 
-The Phase 7 workspace did not include OpenWrt SDK toolchains, so cross-builds
+This workspace did not include OpenWrt SDK toolchains, so cross-builds
 were not executed locally. Treat successful SDK compilation on each target as a
 release gate before deploying the native daemon.

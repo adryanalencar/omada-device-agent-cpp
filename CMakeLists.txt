@@ -18,6 +18,7 @@ add_library(openomada_core STATIC
     src/application/configuration_applier.cpp
     src/application/configuration.cpp
     src/application/configuration_exchange.cpp
+    src/application/daemon_config.cpp
     src/application/inform.cpp
     src/crypto/ecsp_auth.cpp
     src/crypto/hash.cpp
@@ -224,4 +225,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-openwrt-package-tests COMMAND openomada-openwrt-package-tests)
+
+    add_executable(openomada-daemon-config-tests
+        tests/test_daemon_config.cpp
+    )
+    target_link_libraries(openomada-daemon-config-tests PRIVATE openomada_core)
+    target_compile_options(openomada-daemon-config-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-daemon-config-tests COMMAND openomada-daemon-config-tests)
 endif()

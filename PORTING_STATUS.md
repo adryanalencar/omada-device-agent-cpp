@@ -29,5 +29,9 @@
 | DHCP/stale client filtering | Partial | Initial | Yes | Parses dnsmasq lease text; hostapd associated clients remain the active source of truth and DHCP only enriches matching MACs |
 | openNDS portal policy | Partial | Initial | Yes | Maps Omada portal/free-policy config to openNDS walled-garden FQDNs, preauthenticated IP rules, ThemeSpec redirect, `gatewayfqdn=disable`, and service restart plan |
 | openNDS portal clients | Partial | Initial | Yes | Parses `ndsctl json`, handles `EVENT_PORTAL_AUTH`, calls `ndsctl auth`/`ndsctl deauth`, and flushes conntrack after deauth when a client IP is known |
+| OpenWrt package scaffold | Partial | Initial | Yes | SDK package Makefile, CMake install target, procd init, default UCI config, and package staging helper are fixture/syntax-tested |
+| OpenWrt service integration | Partial | Initial | Yes | Init script loads UCI, honors `enabled`, sets non-secret runtime env, declares reload trigger, and avoids passing Device Account password via argv/env |
+| Cross-compilation | N/A | Prepared | No | SDK staging path is documented, but no OpenWrt SDK target was available in this workspace |
+| Resource benchmarking | N/A | Initial | Yes | Local size script records stripped binary/dependencies; RSS waits for real daemon entry point |
 | REPORT | Not implemented | Not implemented | No | Do not fake support |
 | Firmware upgrade | Not implemented | Not implemented | No | Do not fake support |

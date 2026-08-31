@@ -22,7 +22,15 @@ struct LoadStateResult {
     std::string error{};
 };
 
-class JsonSessionStateRepository {
+class SessionStateRepository {
+public:
+    virtual ~SessionStateRepository() = default;
+    virtual LoadStateResult load() const = 0;
+    virtual RepositoryStatus save(const lifecycle::ManagedState& state) const = 0;
+    virtual bool clear() const = 0;
+};
+
+class JsonSessionStateRepository final : public SessionStateRepository {
 public:
     JsonSessionStateRepository(
         std::string path,
@@ -30,9 +38,9 @@ public:
         std::string controller_host
     );
 
-    LoadStateResult load() const;
-    RepositoryStatus save(const lifecycle::ManagedState& state) const;
-    bool clear() const;
+    LoadStateResult load() const override;
+    RepositoryStatus save(const lifecycle::ManagedState& state) const override;
+    bool clear() const override;
 
     const std::string& path() const noexcept { return path_; }
 

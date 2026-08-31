@@ -13,6 +13,10 @@ struct AgentSettings {
     std::uint16_t manage_port{29814};
     std::uint16_t local_discovery_port{0};
     std::uint32_t tcp_timeout_seconds{15};
+    std::uint32_t inform_interval_ms{3000};
+    std::uint32_t reconnect_delay_ms{3000};
+    std::uint32_t managed_reconnect_attempts{3};
+    std::string state_file{};
     bool tls_verify{false};
     std::string tls_ca_file{};
 
@@ -37,4 +41,3 @@ struct AgentSettings {
 };
 
 } // namespace openomada::application
-

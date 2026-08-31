@@ -24,6 +24,7 @@ add_library(openomada_core STATIC
     src/lifecycle/adoption.cpp
     src/lifecycle/discovery.cpp
     src/lifecycle/managed_session.cpp
+    src/lifecycle/reconnect.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -118,4 +119,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-managed-session-tests COMMAND openomada-managed-session-tests)
+
+    add_executable(openomada-reconnect-tests
+        tests/test_reconnect.cpp
+    )
+    target_link_libraries(openomada-reconnect-tests PRIVATE openomada_core)
+    target_compile_options(openomada-reconnect-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-reconnect-tests COMMAND openomada-reconnect-tests)
 endif()

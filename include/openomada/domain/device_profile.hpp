@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -21,6 +22,7 @@ public:
     const application::AgentSettings& settings() const noexcept { return settings_; }
 
     std::string device_info_json(bool is_factory, bool include_ip = true, bool include_factory_flag = true) const;
+    std::string inform_device_info_json(std::uint64_t uptime_seconds) const;
     std::string adoption_device_info_json() const;
     std::string device_misc_json() const;
     std::string components_v2_json() const;

@@ -71,6 +71,30 @@ std::string AccessPointProfile::adoption_device_info_json() const {
     return device_info_json(false, false, false);
 }
 
+std::string AccessPointProfile::inform_device_info_json(std::uint64_t uptime_seconds) const {
+    std::string out = "{";
+    out += "\"ip\":";
+    out += quote(settings_.device_ip);
+    out += ",\"isFactory\":false";
+    out += ",\"name\":";
+    out += quote(settings_.device_name);
+    out += ",\"model\":";
+    out += quote(settings_.model);
+    out += ",\"modelVersion\":";
+    out += quote(settings_.model_version);
+    out += ",\"firmwareVersion\":";
+    out += quote(settings_.firmware_version);
+    out += ",\"hardwareVersion\":";
+    out += quote(settings_.hardware_version);
+    out += ",\"upTime\":";
+    out += quote(std::to_string(uptime_seconds));
+    out += ",\"cpuUti\":0,\"memUti\":0,\"wirelessLinked\":false,\"p2p\":false,\"supportBridge\":0";
+    out += ",\"mainMac\":";
+    out += quote(settings_.mac.omada());
+    out += "}";
+    return out;
+}
+
 std::string AccessPointProfile::device_misc_json() const {
     std::string out;
     out.reserve(256);

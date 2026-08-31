@@ -33,6 +33,7 @@ add_library(openomada_core STATIC
     src/protocol/frame_codec.cpp
     src/protocol/json.cpp
     src/persistence/session_state_repository.cpp
+    src/platform/capabilities.cpp
     src/transport/socket.cpp
     src/transport/tls_client.cpp
     src/transport/udp_discovery.cpp
@@ -158,4 +159,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-managed-request-tests COMMAND openomada-managed-request-tests)
+
+    add_executable(openomada-platform-capabilities-tests
+        tests/test_platform_capabilities.cpp
+    )
+    target_link_libraries(openomada-platform-capabilities-tests PRIVATE openomada_core)
+    target_compile_options(openomada-platform-capabilities-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-platform-capabilities-tests COMMAND openomada-platform-capabilities-tests)
 endif()

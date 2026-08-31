@@ -18,6 +18,7 @@ add_library(openomada_core STATIC
     src/application/configuration_applier.cpp
     src/application/configuration.cpp
     src/application/configuration_exchange.cpp
+    src/application/daemon_config.cpp
     src/application/inform.cpp
     src/crypto/ecsp_auth.cpp
     src/crypto/hash.cpp
@@ -33,6 +34,8 @@ add_library(openomada_core STATIC
     src/openwrt/uci.cpp
     src/openwrt/telemetry.cpp
     src/openwrt/opennds.cpp
+    src/openwrt/process.cpp
+    src/openwrt/inform_provider.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -88,6 +91,21 @@ install(TARGETS openomada-agent-native
 
 if(OPENOMADA_BUILD_TESTS)
     enable_testing()
+    add_test(NAME openomada-native-version COMMAND openomada-agent-native --version)
+    add_test(
+        NAME openomada-native-check-config-disabled
+        COMMAND openomada-agent-native --check-config --config ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/openomada-disabled.config
+    )
+    add_test(
+        NAME openomada-native-dry-run-enabled
+        COMMAND openomada-agent-native --dry-run --config ${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/openomada-enabled.config
+    )
+    add_test(NAME openomada-native-check-config-env COMMAND openomada-agent-native --check-config)
+    set_tests_properties(
+        openomada-native-check-config-env
+        PROPERTIES ENVIRONMENT "OPENOMADA_CONFIG=${CMAKE_CURRENT_SOURCE_DIR}/tests/fixtures/openomada-disabled.config"
+    )
+
     add_executable(openomada-core-tests
         tests/test_core.cpp
     )
@@ -224,4 +242,31 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-openwrt-package-tests COMMAND openomada-openwrt-package-tests)
+
+    add_executable(openomada-daemon-config-tests
+        tests/test_daemon_config.cpp
+    )
+    target_link_libraries(openomada-daemon-config-tests PRIVATE openomada_core)
+    target_compile_options(openomada-daemon-config-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-daemon-config-tests COMMAND openomada-daemon-config-tests)
+
+    add_executable(openomada-openwrt-process-tests
+        tests/test_openwrt_process.cpp
+    )
+    target_link_libraries(openomada-openwrt-process-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-process-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-process-tests COMMAND openomada-openwrt-process-tests)
+
+    add_executable(openomada-openwrt-inform-provider-tests
+        tests/test_openwrt_inform_provider.cpp
+    )
+    target_link_libraries(openomada-openwrt-inform-provider-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-inform-provider-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-inform-provider-tests COMMAND openomada-openwrt-inform-provider-tests)
 endif()

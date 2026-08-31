@@ -68,7 +68,11 @@ void test_openwrt_init_reads_uci_and_avoids_secret_env() {
 void test_openwrt_default_config_declares_portal_runtime() {
     const std::string config = read_file("openwrt/files/openomada.config");
 
+    require(contains(config, "option enabled '0'"), "default package config is disabled");
     require(contains(config, "config agent 'main'"), "agent section");
+    require(contains(config, "option platform 'openwrt'"), "OpenWrt platform default");
+    require(contains(config, "option tcp_timeout_seconds '15'"), "TCP timeout default");
+    require(contains(config, "option reconnect_delay_ms '3000'"), "reconnect delay default");
     require(contains(config, "option state_path '/var/lib/openomada/managed-state.json'"), "state path");
     require(contains(config, "config portal 'main'"), "portal section");
     require(contains(config, "option engine 'opennds'"), "openNDS engine");

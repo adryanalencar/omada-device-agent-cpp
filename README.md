@@ -10,10 +10,12 @@ ARMv7, AArch64, 16 MB flash where practical, and 32-64 MB RAM devices.
 
 ## Current Scope
 
-Phase 7 is still an incremental port, not a replacement daemon:
+The native implementation now has a live daemon entry point, but it is still an
+incremental port rather than a complete replacement for the Python reference:
 
 - project/build skeleton;
-- tiny CLI entry point;
+- live CLI entry point with `--check-config`, `--dry-run`, `--once`,
+  `--version`, and `OPENOMADA_CONFIG` support for OpenWrt `procd`;
 - protocol/domain utility types;
 - ECSP framing and constants;
 - ECSP V2 auth primitives;
@@ -47,20 +49,25 @@ Phase 7 is still an incremental port, not a replacement daemon:
   deauth when the openNDS client IP is known;
 - composite platform applier support so UCI and openNDS adapters can both
   reconcile one managed `SET_REQUEST`;
+- process-backed OpenWrt runtime executor for `uci batch`, `wifi reload`,
+  `ubus`, `ndsctl`, openNDS policy application, ThemeSpec writes, and read-only
+  capability probes;
+- live daemon composition for managed-state reconnect, managed rediscovery, UDP
+  discovery, TLS adoption, V2 initial sync, managed request handling, state
+  persistence, and periodic INFORM using OpenWrt telemetry when `ubus` is
+  available;
+- runtime support guards that reject parsed but unimplemented families such as
+  LED, generic client operations, and client rate limits instead of ACKing them
+  as applied;
 - characterization tests against Python-observed fixtures;
 - OpenWrt package scaffolding with `procd` init, `/etc/config/openomada`,
   openNDS package dependency, SDK staging helper, and resource benchmark helper.
 
-The lifecycle code can build and serialize discovery, PRE_CONNECT,
-DEVICE_VERIFY, SYSTEM_VERIFY, DEVICE_NEGOTIATION and INIT_SYNC messages, and
-tests verify the happy path plus auth failure cases against scripted controller
-frames. The Phase 7 code also persists reconnect metadata, schedules the first
-reply-requested inform and later fire-and-forget informs, models direct
-reconnect exhaustion before managed rediscovery, parses known AP configuration
-payloads, sends defensive managed-mode replies, and can route actionable
-configuration through injected platform appliers. It is not yet wired into a
-long-running daemon, a live `libuci`/`libubus` backend, real process execution
-for those injected interfaces, or real OpenWrt process startup.
+The daemon is now wired end-to-end in process form, but this workspace did not
+run a live Omada Controller/OpenWrt adoption test for the native binary. The
+current OpenWrt backend uses a small argv-based process executor; replacing
+that with `libuci`, `libubus`/`libubox`/`uloop`, and target-specific TLS/crypto
+selection remains future optimization work after protocol parity is validated.
 
 ## OpenWrt Package
 

@@ -1,0 +1,13 @@
+build/
+cmake-build-*/
+*.o
+*.a
+*.so
+*.dylib
+*.exe
+openomada-agent-native
+compile_commands.json
+*.ipk
+*.apk
+*.log
+

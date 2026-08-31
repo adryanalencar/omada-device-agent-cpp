@@ -57,6 +57,8 @@ void test_openwrt_init_reads_uci_and_avoids_secret_env() {
     require(contains(init, "config_get_bool enabled controller enabled 0"), "honors enabled flag");
     require(contains(init, "OPENOMADA_CONFIG="), "exports config path");
     require(contains(init, "OPENOMADA_CONTROLLER_HOST="), "exports controller host");
+    require(contains(init, "OPENOMADA_STATE_PATH="), "exports state path");
+    require(contains(init, "mkdir -p \"$state_dir\""), "creates state directory");
     require(contains(init, "OPENOMADA_OPENNDS_THEMESPEC_PATH="), "exports ThemeSpec path");
     require(contains(init, "procd_add_reload_trigger openomada"), "reload trigger");
     require(!contains(init, "OPENOMADA_PASSWORD"), "does not export password");

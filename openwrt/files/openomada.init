@@ -36,6 +36,9 @@ start_service() {
 	config_get themespec_path portal themespec_path /usr/lib/opennds/theme_openomada_redirect.sh
 	config_get_bool flush_conntrack portal flush_conntrack_on_deauth 1
 
+	local state_dir="${state_path%/*}"
+	[ "$state_dir" = "$state_path" ] || mkdir -p "$state_dir"
+
 	procd_open_instance
 	procd_set_param command "$PROG"
 	procd_set_param env OPENOMADA_CONFIG="$CONFIG"

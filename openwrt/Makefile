@@ -13,7 +13,7 @@ define Package/openomada
   SECTION:=net
   CATEGORY:=Network
   TITLE:=OpenOmada native device agent
-  DEPENDS:=+libstdcpp
+  DEPENDS:=+libstdcpp +libjson-c +libopenssl
 endef
 
 define Package/openomada/description
@@ -38,4 +38,3 @@ define Package/openomada/install
 endef
 
 $(eval $(call BuildPackage,openomada))
-

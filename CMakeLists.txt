@@ -23,6 +23,9 @@ add_library(openomada_core STATIC
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
     src/protocol/json.cpp
+    src/transport/socket.cpp
+    src/transport/tls_client.cpp
+    src/transport/udp_discovery.cpp
 )
 
 target_include_directories(openomada_core
@@ -45,6 +48,12 @@ endif()
 find_package(PkgConfig REQUIRED)
 pkg_check_modules(JSONC REQUIRED IMPORTED_TARGET json-c)
 target_link_libraries(openomada_core PUBLIC PkgConfig::JSONC)
+
+if(OPENOMADA_ENABLE_TLS)
+    pkg_check_modules(OPENSSL_TLS REQUIRED IMPORTED_TARGET openssl)
+    target_compile_definitions(openomada_core PUBLIC OPENOMADA_ENABLE_TLS=1)
+    target_link_libraries(openomada_core PUBLIC PkgConfig::OPENSSL_TLS)
+endif()
 
 add_executable(openomada-agent-native
     src/cli/main.cpp

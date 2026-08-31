@@ -12,8 +12,10 @@
 | TLS/TCP management | Yes | Initial | Build only | TCP RAII socket plus OpenSSL frame transport; no live controller test yet |
 | Adoption/verification | Yes | Initial | Yes | V2 PRE_CONNECT, DEVICE_VERIFY, SYSTEM_VERIFY against scripted frames |
 | Negotiation/init sync | Yes | Initial | Yes | DEVICE_NEGOTIATION and INIT_SYNC_RESULT against scripted frames |
-| Managed state | Yes | Missing | No | Phase 3 |
-| INFORM | Partial | Missing | No | Phase 3 |
+| Managed state | Yes | Initial | Yes | JSON file repository, identity validation, owner-only file mode, no password persistence |
+| Managed reconnect | Yes | Initial | Yes | Direct reconnect attempt policy and managed rediscovery fallback are callback-tested |
+| INFORM | Partial | Initial | Yes | Minimal `deviceInfo`, `lanInfo`, `needReply`; no OpenWrt telemetry yet |
+| Periodic INFORM scheduling | Yes | Initial | Yes | First inform requests reply; later informs are fire-and-forget |
 | SET/configVersion | Partial | Missing | No | Phase 4 |
 | OpenWrt UCI WLAN | Partial | Missing | No | Phase 5 |
 | hostapd/ubus telemetry | Partial | Missing | No | Phase 5 |

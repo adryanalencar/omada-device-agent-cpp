@@ -8,12 +8,12 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The current Phase 2 build requires `json-c` and OpenSSL development files
+The current Phase 3 build requires `json-c` and OpenSSL development files
 discoverable through `pkg-config`. On macOS the hash helpers still use
 CommonCrypto, but TLS transport and secure random generation use OpenSSL. On
 non-Apple systems OpenSSL is also used for MD5/SHA256.
 
-This is a pragmatic Phase 2 backend choice. Later OpenWrt builds may swap the
+This is a pragmatic Phase 3 backend choice. Later OpenWrt builds may swap the
 TLS/crypto backend if a target image already carries a smaller compatible stack.
 
 ## Size-Oriented Build
@@ -27,7 +27,7 @@ strip build-small/openomada-agent-native
 size build-small/openomada-agent-native
 ```
 
-The current Phase 2 code is written to avoid exceptions in runtime paths. Some
+The current Phase 3 code is written to avoid exceptions in runtime paths. Some
 toolchains may still require enabling exceptions for third-party/system library
 headers; that must be measured per OpenWrt target.
 

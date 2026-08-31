@@ -1,5 +1,8 @@
 build/
+build-*/
+build-min/
 cmake-build-*/
+.DS_Store
 *.o
 *.a
 *.so
@@ -10,4 +13,3 @@ compile_commands.json
 *.ipk
 *.apk
 *.log
-

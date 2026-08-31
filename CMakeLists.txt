@@ -26,6 +26,7 @@ add_library(openomada_core STATIC
     src/lifecycle/adoption.cpp
     src/lifecycle/discovery.cpp
     src/lifecycle/managed_session.cpp
+    src/lifecycle/managed_request_handler.cpp
     src/lifecycle/reconnect.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
@@ -148,4 +149,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-configuration-exchange-tests COMMAND openomada-configuration-exchange-tests)
+
+    add_executable(openomada-managed-request-tests
+        tests/test_managed_request_handler.cpp
+    )
+    target_link_libraries(openomada-managed-request-tests PRIVATE openomada_core)
+    target_compile_options(openomada-managed-request-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-managed-request-tests COMMAND openomada-managed-request-tests)
 endif()

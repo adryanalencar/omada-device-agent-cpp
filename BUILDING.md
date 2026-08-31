@@ -8,12 +8,12 @@ cmake --build build
 ctest --test-dir build --output-on-failure
 ```
 
-The current Phase 5 build requires `json-c` and OpenSSL development files
+The current Phase 6 build requires `json-c` and OpenSSL development files
 discoverable through `pkg-config`. On macOS the hash helpers still use
 CommonCrypto, but TLS transport and secure random generation use OpenSSL. On
 non-Apple systems OpenSSL is also used for MD5/SHA256.
 
-This is a pragmatic Phase 5 backend choice. Later OpenWrt builds may swap the
+This is a pragmatic Phase 6 backend choice. Later OpenWrt builds may swap the
 TLS/crypto backend if a target image already carries a smaller compatible stack.
 
 ## Size-Oriented Build
@@ -27,14 +27,14 @@ strip build-small/openomada-agent-native
 size build-small/openomada-agent-native
 ```
 
-The current Phase 5 code is written to avoid exceptions in runtime paths. Some
+The current Phase 6 code is written to avoid exceptions in runtime paths. Some
 toolchains may still require enabling exceptions for third-party/system library
 headers; that must be measured per OpenWrt target.
 
-Phase 5 adds OpenWrt UCI and telemetry mapping, but the portable build still
+Phase 6 adds openNDS portal policy/client mapping, but the portable build still
 uses injected interfaces and JSON/text fixtures. A live OpenWrt backend should
-bind those interfaces to `libuci`, `libubus` and `uloop` instead of adding shell
-coupling to ECSP protocol code.
+bind those interfaces to `libuci`, `libubus`, `uloop` and a small process/native
+executor instead of adding shell coupling to ECSP protocol code.
 
 ## OpenWrt SDK
 
@@ -48,5 +48,6 @@ The native runtime must be developed assuming:
 - explicit network byte order for ECSP frames;
 - `json-c`;
 - OpenSSL-compatible TLS/crypto, currently represented by `+libopenssl`;
+- `opennds` and `conntrack` when captive portal support is enabled;
 - no Boost, Qt, Node.js, Go runtime, or embedded Python;
 - small target flash/RAM budget.

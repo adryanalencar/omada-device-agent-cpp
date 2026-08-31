@@ -10,7 +10,7 @@ ARMv7, AArch64, 16 MB flash where practical, and 32-64 MB RAM devices.
 
 ## Current Scope
 
-Phase 5 is still an incremental port, not a replacement daemon:
+Phase 6 is still an incremental port, not a replacement daemon:
 
 - project/build skeleton;
 - tiny CLI entry point;
@@ -35,19 +35,31 @@ Phase 5 is still an incremental port, not a replacement daemon:
 - hostapd/ubus-style wireless telemetry parsing for `wSettings_*`,
   `ssidStats_*`, `radioTraffic_*`, active wireless clients, DHCP enrichment, and
   stale-client filtering;
+- openNDS captive portal policy mapping from Omada portal/free-policy config,
+  including walled-garden FQDNs, preauthenticated IP rules, controller/external
+  portal redirect selection, and `gatewayfqdn=disable` to avoid depending on
+  client DNS resolving `status.client`;
+- openNDS ThemeSpec generation with TP-Link-style external portal parameters
+  (`clientMac`, `clientIp`, `site`, `redirectUrl`, `apMac`, `ssidName`,
+  `radioId`);
+- openNDS client state parsing and `EVENT_PORTAL_AUTH` handling through
+  `ndsctl auth`/`ndsctl deauth`, including conntrack cleanup after portal
+  deauth when the openNDS client IP is known;
+- composite platform applier support so UCI and openNDS adapters can both
+  reconcile one managed `SET_REQUEST`;
 - characterization tests against Python-observed fixtures;
 - OpenWrt package scaffolding.
 
 The lifecycle code can build and serialize discovery, PRE_CONNECT,
 DEVICE_VERIFY, SYSTEM_VERIFY, DEVICE_NEGOTIATION and INIT_SYNC messages, and
 tests verify the happy path plus auth failure cases against scripted controller
-frames. The Phase 5 code also persists reconnect metadata, schedules the first
+frames. The Phase 6 code also persists reconnect metadata, schedules the first
 reply-requested inform and later fire-and-forget informs, models direct
 reconnect exhaustion before managed rediscovery, parses known AP configuration
 payloads, sends defensive managed-mode replies, and can route actionable
-configuration through an injected platform applier. It is not yet wired into a
-long-running daemon, a live `libuci`/`libubus` backend, or real OpenWrt process
-startup.
+configuration through injected platform appliers. It is not yet wired into a
+long-running daemon, a live `libuci`/`libubus` backend, real process execution
+for those injected interfaces, or real OpenWrt process startup.
 
 Unsupported protocol families such as `REPORT`, firmware upgrade, mesh, remote
 terminal, switch/gateway/OLT profiles, and unvalidated WLAN/security modes must
@@ -63,3 +75,5 @@ remain unadvertised until independently implemented and tested.
 - Never log or persist Device Account passwords.
 - Prefer OpenWrt-native libraries (`libuci`, `libubus`, `libubox`, `json-c`,
   target TLS/crypto stack) over large bundled dependencies.
+- Keep captive portal enforcement delegated to openNDS; the native agent only
+  translates Omada intent into openNDS policy and client authorization commands.

@@ -10,7 +10,7 @@ ARMv7, AArch64, 16 MB flash where practical, and 32-64 MB RAM devices.
 
 ## Current Scope
 
-Phase 3 is still an incremental port, not a replacement daemon:
+Phase 4 is still an incremental port, not a replacement daemon:
 
 - project/build skeleton;
 - tiny CLI entry point;
@@ -24,16 +24,22 @@ Phase 3 is still an incremental port, not a replacement daemon:
 - non-secret JSON managed-state persistence;
 - direct managed reconnect policy and managed rediscovery fallback;
 - minimal managed `INFORM_REQUEST` projection and deterministic scheduler;
+- typed Access Point configuration parsing for known controller `SET_REQUEST`
+  families;
+- protocol-correct `SET_RESPONSE`, `GET_RESPONSE`, defensive NOTIFY replies,
+  FORGET responses, and config-version bookkeeping;
 - characterization tests against Python-observed fixtures;
 - OpenWrt package scaffolding.
 
 The lifecycle code can build and serialize discovery, PRE_CONNECT,
 DEVICE_VERIFY, SYSTEM_VERIFY, DEVICE_NEGOTIATION and INIT_SYNC messages, and
 tests verify the happy path plus auth failure cases against scripted controller
-frames. The Phase 3 code also persists reconnect metadata, schedules the first
-reply-requested inform and later fire-and-forget informs, and models direct
-reconnect exhaustion before managed rediscovery. It is not yet wired into a
-long-running daemon.
+frames. The Phase 4 code also persists reconnect metadata, schedules the first
+reply-requested inform and later fire-and-forget informs, models direct
+reconnect exhaustion before managed rediscovery, parses known AP configuration
+payloads, and sends defensive managed-mode replies without acknowledging
+unsupported or unapplied actionable configuration. It is not yet wired into a
+long-running daemon or OpenWrt applier.
 
 Unsupported protocol families such as `REPORT`, firmware upgrade, mesh, remote
 terminal, switch/gateway/OLT profiles, and unvalidated WLAN/security modes must

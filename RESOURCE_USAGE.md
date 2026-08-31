@@ -8,6 +8,7 @@ profile that matters.
 | macOS arm64 Phase 1 `MinSizeRel -fno-exceptions -fno-rtti` | 34,472 bytes | `/usr/lib/libc++.1.dylib`, `/usr/lib/libSystem.B.dylib` | N/A | N/A | N/A | N/A | Not measured |
 | macOS arm64 Phase 2 `MinSizeRel -fno-exceptions -fno-rtti` | 34,480 bytes | `libjson-c.5.dylib`, `libssl.3.dylib`, `libcrypto.3.dylib`, `/usr/lib/libc++.1.dylib`, `/usr/lib/libSystem.B.dylib` | N/A | N/A | N/A | N/A | Not measured |
 | macOS arm64 Phase 3 `MinSizeRel -fno-exceptions -fno-rtti` | 35,032 bytes | `libjson-c.5.dylib`, `libssl.3.dylib`, `libcrypto.3.dylib`, `/usr/lib/libc++.1.dylib`, `/usr/lib/libSystem.B.dylib` | N/A | N/A | N/A | N/A | Not measured |
+| macOS arm64 Phase 4 `MinSizeRel -fno-exceptions -fno-rtti` | 34,480 bytes | `libjson-c.5.dylib`, `libssl.3.dylib`, `libcrypto.3.dylib`, `/usr/lib/libc++.1.dylib`, `/usr/lib/libSystem.B.dylib` | N/A | N/A | N/A | N/A | Not measured |
 
 Recommended commands:
 
@@ -22,7 +23,7 @@ readelf -d build-small/openomada-agent-native
 On OpenWrt, measure daemon RSS from `/proc/<pid>/status` and avoid protocol
 trace logging during steady-state measurements.
 
-Phase 3 still does not run a long-lived daemon. Idle/adoption/SET/INFORM RSS
+Phase 4 still does not run a long-lived daemon. Idle/adoption/SET/INFORM RSS
 measurements would be misleading until the lifecycle is connected to the CLI
 process and event-loop work lands in a later phase.
 

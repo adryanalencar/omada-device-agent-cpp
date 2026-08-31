@@ -16,7 +16,11 @@
 | Managed reconnect | Yes | Initial | Yes | Direct reconnect attempt policy and managed rediscovery fallback are callback-tested |
 | INFORM | Partial | Initial | Yes | Minimal `deviceInfo`, `lanInfo`, `needReply`; no OpenWrt telemetry yet |
 | Periodic INFORM scheduling | Yes | Initial | Yes | First inform requests reply; later informs are fire-and-forget |
-| SET/configVersion | Partial | Missing | No | Phase 4 |
+| AP configuration model | Partial | Initial | Yes | Parses known radio, WLAN, VLAN, portal, LED, client operation, and client rate-limit families into typed structures |
+| SET/configVersion | Partial | Initial | Yes | Builds Python-compatible `SET_RESPONSE` bodies for absolute/incremental versions; actionable config is rejected until a platform applier exists |
+| Defensive GET | Partial | Initial | Yes | Returns `GET_RESPONSE` with `unsupportedKeys` for requested keys |
+| Defensive NOTIFY | Partial | Initial | Yes | Supports reply/no-reply handling and V2 reply type selection |
+| FORGET | Yes | Initial | Yes | Sends `FORGET_RESPONSE`/`FORGET_RESPONSE_NO_RESET` and marks managed state/session for clearing |
 | OpenWrt UCI WLAN | Partial | Missing | No | Phase 5 |
 | hostapd/ubus telemetry | Partial | Missing | No | Phase 5 |
 | openNDS portal | Partial | Missing | No | Phase 6 |

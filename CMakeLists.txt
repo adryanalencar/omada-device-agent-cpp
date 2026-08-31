@@ -26,6 +26,7 @@ add_library(openomada_core STATIC
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
     src/protocol/json.cpp
+    src/persistence/session_state_repository.cpp
     src/transport/socket.cpp
     src/transport/tls_client.cpp
     src/transport/udp_discovery.cpp
@@ -88,4 +89,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-lifecycle-tests COMMAND openomada-lifecycle-tests)
+
+    add_executable(openomada-persistence-tests
+        tests/test_persistence.cpp
+    )
+    target_link_libraries(openomada-persistence-tests PRIVATE openomada_core)
+    target_compile_options(openomada-persistence-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-persistence-tests COMMAND openomada-persistence-tests)
 endif()

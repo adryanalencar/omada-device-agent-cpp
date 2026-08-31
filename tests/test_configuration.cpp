@@ -1,7 +1,9 @@
+#include <cstddef>
 #include <cstdlib>
 #include <iostream>
 #include <string>
 
+#include "openomada/application/configuration_applier.hpp"
 #include "openomada/application/configuration.hpp"
 
 namespace {
@@ -12,6 +14,20 @@ void require(bool condition, const char* message) {
         std::exit(1);
     }
 }
+
+class RecordingApplier final : public openomada::application::ConfigurationApplier {
+public:
+    openomada::application::ConfigurationApplyResult result{true, false, {}};
+    std::size_t calls{0};
+
+    openomada::application::ConfigurationApplyResult apply(
+        const openomada::application::AccessPointConfigUpdate& update
+    ) override {
+        (void)update;
+        ++calls;
+        return result;
+    }
+};
 
 void test_parse_radio_wlan_vlan_portal_and_led_config() {
     const auto parsed = openomada::application::parse_config_body_json(R"({
@@ -226,6 +242,27 @@ void test_describe_config_update_omits_secrets() {
     require(description.find("do-not-log") == std::string::npos, "PSK omitted from description");
 }
 
+void test_composite_configuration_applier_routes_to_all_adapters() {
+    RecordingApplier first;
+    first.result = {true, true, {}};
+    RecordingApplier second;
+    second.result = {true, false, {}};
+    openomada::application::CompositeConfigurationApplier composite({&first});
+    composite.add(second);
+
+    const auto result = composite.apply(openomada::application::AccessPointConfigUpdate{});
+
+    require(result.ok, result.error.c_str());
+    require(result.changed, "composite changed if any adapter changed");
+    require(first.calls == 1, "first applier called");
+    require(second.calls == 1, "second applier called");
+
+    second.result = {false, false, "second failed"};
+    const auto failure = composite.apply(openomada::application::AccessPointConfigUpdate{});
+    require(!failure.ok, "composite failure propagated");
+    require(failure.error == "second failed", "composite error propagated");
+}
+
 } // namespace
 
 int main() {
@@ -234,6 +271,7 @@ int main() {
     test_parser_rejects_invalid_vlan_ssid_and_missing_client_mac();
     test_passive_and_unhandled_keys_are_classified();
     test_describe_config_update_omits_secrets();
+    test_composite_configuration_applier_routes_to_all_adapters();
     std::cout << "openomada-configuration-tests passed\n";
     return 0;
 }

@@ -15,6 +15,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 add_library(openomada_core STATIC
     src/application/client_state.cpp
+    src/application/configuration_applier.cpp
     src/application/configuration.cpp
     src/application/configuration_exchange.cpp
     src/application/inform.cpp

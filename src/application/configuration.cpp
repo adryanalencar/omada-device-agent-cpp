@@ -360,11 +360,83 @@ PortalFreePolicy parse_portal_free_policy(json_object* raw, std::string* error) 
     if (!require_object(raw, "portal free policy config", error)) {
         return policy;
     }
-    policy.layer2_rule_count = iter_items(protocol::object_member(raw, "portalFreePolicy"), "portal free policy item", error).size();
+    const auto layer2_items = iter_items(protocol::object_member(raw, "portalFreePolicy"), "portal free policy item", error);
+    policy.layer2_rule_count = layer2_items.size();
     if (error != nullptr && !error->empty()) {
         return policy;
     }
-    policy.url_rule_count = iter_items(protocol::object_member(raw, "urlPortalFreePolicy"), "portal URL free policy item", error).size();
+    for (json_object* item : layer2_items) {
+        if (!is_object(item)) {
+            if (error != nullptr) {
+                *error = "portal free policy item must be a JSON object";
+            }
+            return policy;
+        }
+        PortalLayer2Rule rule;
+        rule.value = optional_string(protocol::object_member(item, "value")).value_or("");
+        rule.dst_ip = optional_string(protocol::object_member(item, "dstIp")).value_or("");
+        rule.ip = optional_string(protocol::object_member(item, "ip")).value_or("");
+        rule.ip_address = optional_string(protocol::object_member(item, "ipAddress")).value_or("");
+        rule.address = optional_string(protocol::object_member(item, "address")).value_or("");
+        rule.dst = optional_string(protocol::object_member(item, "dst")).value_or("");
+        rule.dst_mask = optional_int(protocol::object_member(item, "dstMask"));
+        rule.mask = optional_int(protocol::object_member(item, "mask"));
+        policy.layer2_rules.push_back(std::move(rule));
+        for (const char* child_key : {"children", "entries"}) {
+            for (json_object* child : iter_items(protocol::object_member(item, child_key), child_key, error)) {
+                if (error != nullptr && !error->empty()) {
+                    return policy;
+                }
+                if (!is_object(child)) {
+                    continue;
+                }
+                PortalLayer2Rule child_rule;
+                child_rule.value = optional_string(protocol::object_member(child, "value")).value_or("");
+                child_rule.dst_ip = optional_string(protocol::object_member(child, "dstIp")).value_or("");
+                child_rule.ip = optional_string(protocol::object_member(child, "ip")).value_or("");
+                child_rule.ip_address = optional_string(protocol::object_member(child, "ipAddress")).value_or("");
+                child_rule.address = optional_string(protocol::object_member(child, "address")).value_or("");
+                child_rule.dst = optional_string(protocol::object_member(child, "dst")).value_or("");
+                child_rule.dst_mask = optional_int(protocol::object_member(child, "dstMask"));
+                child_rule.mask = optional_int(protocol::object_member(child, "mask"));
+                policy.layer2_rules.push_back(std::move(child_rule));
+            }
+        }
+    }
+
+    const auto url_items = iter_items(protocol::object_member(raw, "urlPortalFreePolicy"), "portal URL free policy item", error);
+    policy.url_rule_count = url_items.size();
+    if (error != nullptr && !error->empty()) {
+        return policy;
+    }
+    for (json_object* item : url_items) {
+        if (!is_object(item)) {
+            if (error != nullptr) {
+                *error = "portal URL free policy item must be a JSON object";
+            }
+            return policy;
+        }
+        PortalUrlRule rule;
+        rule.url = optional_string(protocol::object_member(item, "url")).value_or("");
+        rule.host = optional_string(protocol::object_member(item, "host")).value_or("");
+        rule.value = optional_string(protocol::object_member(item, "value")).value_or("");
+        policy.url_rules.push_back(std::move(rule));
+        for (const char* child_key : {"children", "entries"}) {
+            for (json_object* child : iter_items(protocol::object_member(item, child_key), child_key, error)) {
+                if (error != nullptr && !error->empty()) {
+                    return policy;
+                }
+                if (!is_object(child)) {
+                    continue;
+                }
+                PortalUrlRule child_rule;
+                child_rule.url = optional_string(protocol::object_member(child, "url")).value_or("");
+                child_rule.host = optional_string(protocol::object_member(child, "host")).value_or("");
+                child_rule.value = optional_string(protocol::object_member(child, "value")).value_or("");
+                policy.url_rules.push_back(std::move(child_rule));
+            }
+        }
+    }
     return policy;
 }
 

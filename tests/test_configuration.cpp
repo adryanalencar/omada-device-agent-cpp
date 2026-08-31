@@ -116,6 +116,9 @@ void test_parse_radio_wlan_vlan_portal_and_led_config() {
     require(update.portal_free_policy.has_value(), "portal free policy parsed");
     require(update.portal_free_policy->layer2_rule_count == 1, "portal L2 free policy count");
     require(update.portal_free_policy->url_rule_count == 1, "portal URL free policy count");
+    require(update.portal_free_policy->layer2_rules.size() == 1, "portal L2 rule retained");
+    require(update.portal_free_policy->url_rules.size() == 1, "portal URL rule retained");
+    require(update.portal_free_policy->url_rules[0].host == "example.com", "portal URL host retained");
     require(update.portal_configs.size() == 1, "portal config parsed");
     require(update.portal_configs[0].auth_type.value_or(0) == 4, "portal auth type");
     require(update.portal_configs[0].external_portal_server == "https://portal.example.com/login", "external portal server");

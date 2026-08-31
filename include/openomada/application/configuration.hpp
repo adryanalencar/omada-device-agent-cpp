@@ -88,9 +88,28 @@ struct ManagementVlan {
     std::optional<std::uint16_t> vlan_id{};
 };
 
+struct PortalLayer2Rule {
+    std::string value{};
+    std::string dst_ip{};
+    std::string ip{};
+    std::string ip_address{};
+    std::string address{};
+    std::string dst{};
+    std::optional<std::int64_t> dst_mask{};
+    std::optional<std::int64_t> mask{};
+};
+
+struct PortalUrlRule {
+    std::string url{};
+    std::string host{};
+    std::string value{};
+};
+
 struct PortalFreePolicy {
     std::size_t layer2_rule_count{0};
     std::size_t url_rule_count{0};
+    std::vector<PortalLayer2Rule> layer2_rules{};
+    std::vector<PortalUrlRule> url_rules{};
 };
 
 struct PortalConfiguration {
@@ -176,6 +195,7 @@ struct ConfigParseResult {
 
 ConfigParseResult parse_config_body_json(std::string_view body_json) noexcept;
 ConfigParseResult parse_set_request_json(std::string_view message_json) noexcept;
+ConfigParseResult parse_portal_auth_request_json(std::string_view message_json) noexcept;
 
 std::string describe_config_update(const AccessPointConfigUpdate& update);
 

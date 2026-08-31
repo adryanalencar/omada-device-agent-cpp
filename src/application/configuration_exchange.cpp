@@ -190,6 +190,12 @@ NotifyReplyResult notify_error(std::string message) {
     return result;
 }
 
+PortalAuthReplyResult portal_auth_error(std::string message) {
+    PortalAuthReplyResult result;
+    result.error = std::move(message);
+    return result;
+}
+
 } // namespace
 
 SetRequestEvaluation evaluate_set_request(std::string_view message_json) noexcept {
@@ -355,6 +361,41 @@ std::string build_notify_reply_json(
     const auto fields = parse_header(request_json);
     return protocol::build_message_json(
         response_header(settings, reply.response_type, fields.header_seq, controller_id, timestamp_ms),
+        reply.body_json
+    );
+}
+
+PortalAuthReplyResult build_portal_auth_reply_body_json(
+    std::string_view request_json,
+    std::int64_t errcode
+) noexcept {
+    auto fields = parse_header(request_json);
+    if (!fields.ok) {
+        return portal_auth_error(fields.error);
+    }
+    PortalAuthReplyResult result;
+    result.ok = true;
+    result.should_reply = fields.header_seq.has_value();
+    result.sequence_id = fields.header_seq.has_value()
+        ? std::optional<std::int64_t>(*fields.header_seq)
+        : std::nullopt;
+    result.errcode = errcode;
+    result.body_json = "{\"err\":";
+    result.body_json += std::to_string(errcode);
+    result.body_json += "}";
+    return result;
+}
+
+std::string build_portal_auth_reply_json(
+    const AgentSettings& settings,
+    std::string_view request_json,
+    const std::string& controller_id,
+    const PortalAuthReplyResult& reply,
+    std::uint64_t timestamp_ms
+) {
+    const auto fields = parse_header(request_json);
+    return protocol::build_message_json(
+        response_header(settings, protocol::MessageType::EventPortalAuthResponse, fields.header_seq, controller_id, timestamp_ms),
         reply.body_json
     );
 }

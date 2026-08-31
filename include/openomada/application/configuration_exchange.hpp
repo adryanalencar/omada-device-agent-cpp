@@ -45,6 +45,15 @@ struct NotifyReplyResult {
     std::string error{};
 };
 
+struct PortalAuthReplyResult {
+    bool ok{false};
+    bool should_reply{false};
+    std::optional<std::int64_t> sequence_id{};
+    std::int64_t errcode{kConfigError};
+    std::string body_json{};
+    std::string error{};
+};
+
 struct ForgetResponseResult {
     bool ok{false};
     protocol::MessageType response_type{protocol::MessageType::ForgetResponse};
@@ -91,6 +100,19 @@ std::string build_notify_reply_json(
     std::string_view request_json,
     const std::string& controller_id,
     const NotifyReplyResult& reply,
+    std::uint64_t timestamp_ms = 0
+);
+
+PortalAuthReplyResult build_portal_auth_reply_body_json(
+    std::string_view request_json,
+    std::int64_t errcode = kConfigOk
+) noexcept;
+
+std::string build_portal_auth_reply_json(
+    const AgentSettings& settings,
+    std::string_view request_json,
+    const std::string& controller_id,
+    const PortalAuthReplyResult& reply,
     std::uint64_t timestamp_ms = 0
 );
 

@@ -13,7 +13,7 @@ define Package/openomada
   SECTION:=net
   CATEGORY:=Network
   TITLE:=OpenOmada native device agent
-  DEPENDS:=+libstdcpp +libjson-c +libopenssl
+  DEPENDS:=+libstdcpp +libjson-c +libopenssl +opennds +conntrack
 endef
 
 define Package/openomada/description

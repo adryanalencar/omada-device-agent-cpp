@@ -360,11 +360,83 @@ PortalFreePolicy parse_portal_free_policy(json_object* raw, std::string* error) 
     if (!require_object(raw, "portal free policy config", error)) {
         return policy;
     }
-    policy.layer2_rule_count = iter_items(protocol::object_member(raw, "portalFreePolicy"), "portal free policy item", error).size();
+    const auto layer2_items = iter_items(protocol::object_member(raw, "portalFreePolicy"), "portal free policy item", error);
+    policy.layer2_rule_count = layer2_items.size();
     if (error != nullptr && !error->empty()) {
         return policy;
     }
-    policy.url_rule_count = iter_items(protocol::object_member(raw, "urlPortalFreePolicy"), "portal URL free policy item", error).size();
+    for (json_object* item : layer2_items) {
+        if (!is_object(item)) {
+            if (error != nullptr) {
+                *error = "portal free policy item must be a JSON object";
+            }
+            return policy;
+        }
+        PortalLayer2Rule rule;
+        rule.value = optional_string(protocol::object_member(item, "value")).value_or("");
+        rule.dst_ip = optional_string(protocol::object_member(item, "dstIp")).value_or("");
+        rule.ip = optional_string(protocol::object_member(item, "ip")).value_or("");
+        rule.ip_address = optional_string(protocol::object_member(item, "ipAddress")).value_or("");
+        rule.address = optional_string(protocol::object_member(item, "address")).value_or("");
+        rule.dst = optional_string(protocol::object_member(item, "dst")).value_or("");
+        rule.dst_mask = optional_int(protocol::object_member(item, "dstMask"));
+        rule.mask = optional_int(protocol::object_member(item, "mask"));
+        policy.layer2_rules.push_back(std::move(rule));
+        for (const char* child_key : {"children", "entries"}) {
+            for (json_object* child : iter_items(protocol::object_member(item, child_key), child_key, error)) {
+                if (error != nullptr && !error->empty()) {
+                    return policy;
+                }
+                if (!is_object(child)) {
+                    continue;
+                }
+                PortalLayer2Rule child_rule;
+                child_rule.value = optional_string(protocol::object_member(child, "value")).value_or("");
+                child_rule.dst_ip = optional_string(protocol::object_member(child, "dstIp")).value_or("");
+                child_rule.ip = optional_string(protocol::object_member(child, "ip")).value_or("");
+                child_rule.ip_address = optional_string(protocol::object_member(child, "ipAddress")).value_or("");
+                child_rule.address = optional_string(protocol::object_member(child, "address")).value_or("");
+                child_rule.dst = optional_string(protocol::object_member(child, "dst")).value_or("");
+                child_rule.dst_mask = optional_int(protocol::object_member(child, "dstMask"));
+                child_rule.mask = optional_int(protocol::object_member(child, "mask"));
+                policy.layer2_rules.push_back(std::move(child_rule));
+            }
+        }
+    }
+
+    const auto url_items = iter_items(protocol::object_member(raw, "urlPortalFreePolicy"), "portal URL free policy item", error);
+    policy.url_rule_count = url_items.size();
+    if (error != nullptr && !error->empty()) {
+        return policy;
+    }
+    for (json_object* item : url_items) {
+        if (!is_object(item)) {
+            if (error != nullptr) {
+                *error = "portal URL free policy item must be a JSON object";
+            }
+            return policy;
+        }
+        PortalUrlRule rule;
+        rule.url = optional_string(protocol::object_member(item, "url")).value_or("");
+        rule.host = optional_string(protocol::object_member(item, "host")).value_or("");
+        rule.value = optional_string(protocol::object_member(item, "value")).value_or("");
+        policy.url_rules.push_back(std::move(rule));
+        for (const char* child_key : {"children", "entries"}) {
+            for (json_object* child : iter_items(protocol::object_member(item, child_key), child_key, error)) {
+                if (error != nullptr && !error->empty()) {
+                    return policy;
+                }
+                if (!is_object(child)) {
+                    continue;
+                }
+                PortalUrlRule child_rule;
+                child_rule.url = optional_string(protocol::object_member(child, "url")).value_or("");
+                child_rule.host = optional_string(protocol::object_member(child, "host")).value_or("");
+                child_rule.value = optional_string(protocol::object_member(child, "value")).value_or("");
+                policy.url_rules.push_back(std::move(child_rule));
+            }
+        }
+    }
     return policy;
 }
 
@@ -444,6 +516,33 @@ void parse_client_config(AccessPointConfigUpdate* update, json_object* raw, std:
         ClientAuthConfig config;
         config.client_mac = *mac;
         config.unauthenticated = optional_bool(protocol::object_member(item, "unauth"));
+        update->client_configs.push_back(config);
+    }
+}
+
+void parse_portal_authed_users(AccessPointConfigUpdate* update, json_object* raw, std::string* error) {
+    for (json_object* item : iter_items(raw, "EVENT_PORTAL_AUTH authedUsers", error)) {
+        if (error != nullptr && !error->empty()) {
+            return;
+        }
+        if (!require_object(item, "EVENT_PORTAL_AUTH authedUsers item", error)) {
+            return;
+        }
+        auto result = optional_int(protocol::object_member(item, "rst"));
+        if (!result.has_value() || (*result != 0 && *result != 1)) {
+            continue;
+        }
+        json_object* raw_mac = protocol::object_member(item, "mac");
+        if (raw_mac == nullptr) {
+            raw_mac = protocol::object_member(item, "clientMac");
+        }
+        auto mac = required_mac(raw_mac, "EVENT_PORTAL_AUTH.authedUsers.mac", error);
+        if (!mac.has_value()) {
+            return;
+        }
+        ClientAuthConfig config;
+        config.client_mac = *mac;
+        config.unauthenticated = *result == 0;
         update->client_configs.push_back(config);
     }
 }
@@ -681,6 +780,30 @@ ConfigParseResult parse_set_request_json(std::string_view message_json) noexcept
         return fail("SET_REQUEST body must be a JSON object");
     }
     return parse_body_object(body);
+}
+
+ConfigParseResult parse_portal_auth_request_json(std::string_view message_json) noexcept {
+    auto document = protocol::JsonDocument::parse(message_json);
+    if (!document.valid()) {
+        return fail("EVENT_PORTAL_AUTH must be a JSON object");
+    }
+    json_object* body = protocol::ecsp_body(document.get());
+    if (!is_object(body)) {
+        return fail("EVENT_PORTAL_AUTH body must be a JSON object");
+    }
+
+    ConfigParseResult result;
+    result.ok = true;
+    json_object* header = protocol::object_member(document.get(), "header");
+    if (is_object(header)) {
+        result.update.sequence_id = optional_int(protocol::object_member(header, "seq"));
+    }
+    std::string error;
+    parse_portal_authed_users(&result.update, protocol::object_member(body, "authedUsers"), &error);
+    if (!error.empty()) {
+        return fail(error);
+    }
+    return result;
 }
 
 std::string describe_config_update(const AccessPointConfigUpdate& update) {

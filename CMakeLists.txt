@@ -35,6 +35,7 @@ add_library(openomada_core STATIC
     src/openwrt/telemetry.cpp
     src/openwrt/opennds.cpp
     src/openwrt/process.cpp
+    src/openwrt/inform_provider.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -244,4 +245,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-openwrt-process-tests COMMAND openomada-openwrt-process-tests)
+
+    add_executable(openomada-openwrt-inform-provider-tests
+        tests/test_openwrt_inform_provider.cpp
+    )
+    target_link_libraries(openomada-openwrt-inform-provider-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-inform-provider-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-inform-provider-tests COMMAND openomada-openwrt-inform-provider-tests)
 endif()

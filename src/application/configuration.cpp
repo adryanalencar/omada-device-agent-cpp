@@ -306,6 +306,7 @@ WirelessNetwork parse_ssid_item(RadioBand band, std::optional<std::int64_t> radi
     wlan.security.wpa_cipher = optional_int(protocol::object_member(raw, "wpaCipher"));
     wlan.security.psk_version = optional_int(protocol::object_member(raw, "pskVer"));
     wlan.security.psk_cipher = optional_int(protocol::object_member(raw, "pskCipher"));
+    wlan.security.psk_key = optional_string(protocol::object_member(raw, "pskKey")).value_or("");
     wlan.security.psk_configured = protocol::object_member(raw, "pskKey") != nullptr;
     wlan.security.radius_profile_id = optional_string(protocol::object_member(raw, "wpaRadiusProfileId")).value_or("");
     wlan.security.radius_auth = active_mapping(protocol::object_member(raw, "radiusAuth"));

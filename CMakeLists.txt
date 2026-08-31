@@ -28,6 +28,7 @@ add_library(openomada_core STATIC
     src/lifecycle/managed_session.cpp
     src/lifecycle/managed_request_handler.cpp
     src/lifecycle/reconnect.cpp
+    src/openwrt/uci.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -168,4 +169,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-platform-capabilities-tests COMMAND openomada-platform-capabilities-tests)
+
+    add_executable(openomada-openwrt-uci-tests
+        tests/test_openwrt_uci.cpp
+    )
+    target_link_libraries(openomada-openwrt-uci-tests PRIVATE openomada_core)
+    target_compile_options(openomada-openwrt-uci-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-openwrt-uci-tests COMMAND openomada-openwrt-uci-tests)
 endif()

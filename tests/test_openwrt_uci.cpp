@@ -38,6 +38,26 @@ bool contains(const std::vector<std::string>& commands, const std::string& expec
     return false;
 }
 
+class RecordingExecutor final : public openomada::openwrt::UciExecutor {
+public:
+    openomada::openwrt::UciExecutionResult batch_result{true, true, {}};
+    openomada::openwrt::UciExecutionResult reload_result{true, true, {}};
+    std::string batch{};
+    std::size_t batch_calls{0};
+    std::size_t reload_calls{0};
+
+    openomada::openwrt::UciExecutionResult apply_batch(const std::string& rendered_batch) override {
+        ++batch_calls;
+        batch = rendered_batch;
+        return batch_result;
+    }
+
+    openomada::openwrt::UciExecutionResult reload_wifi() override {
+        ++reload_calls;
+        return reload_result;
+    }
+};
+
 void test_builds_idempotent_uci_batch_for_radio_and_psk_wlan() {
     const auto parsed = openomada::application::parse_config_body_json(R"({
         "wirelessBasic_2G": {
@@ -189,6 +209,57 @@ void test_uci_escaping_handles_apostrophes_and_backslashes() {
     require(batch.find("pa'\\''ss\\\\word") != std::string::npos, "PSK escaped");
 }
 
+void test_reconciler_executes_batch_and_wifi_reload_without_shell_coupling() {
+    const auto parsed = openomada::application::parse_config_body_json(
+        R"({"ssid_2G":{"radioId":0,"ssid":[{"ssidName":"lab","pskKey":"secret"}]}})"
+    );
+    require(parsed.ok, parsed.error.c_str());
+    RecordingExecutor executor;
+    openomada::openwrt::OpenWrtUciReconciler reconciler(caps(), executor);
+
+    const auto result = reconciler.apply(parsed.update);
+
+    require(result.ok, result.error.c_str());
+    require(result.changed, "reconciler changed");
+    require(executor.batch_calls == 1, "batch called");
+    require(executor.reload_calls == 1, "reload called");
+    require(executor.batch.find("set wireless.openomada_2g_lab.ssid='lab'") != std::string::npos, "batch rendered");
+}
+
+void test_reconciler_rejects_invalid_plan_before_executor() {
+    const auto parsed = openomada::application::parse_config_body_json(
+        R"({"ssid_2G":{"radioId":0,"ssid":[{"ssidName":"lab","vlanId":30}]}})"
+    );
+    require(parsed.ok, parsed.error.c_str());
+    RecordingExecutor executor;
+    openomada::openwrt::OpenWrtUciReconciler reconciler(caps(), executor);
+
+    const auto result = reconciler.apply(parsed.update);
+
+    require(!result.ok, "reconciler rejects invalid plan");
+    require(result.error.find("SSID VLAN requested") != std::string::npos, "validation error");
+    require(executor.batch_calls == 0, "batch not called");
+    require(executor.reload_calls == 0, "reload not called");
+}
+
+void test_reconciler_reports_reload_failure_after_batch() {
+    const auto parsed = openomada::application::parse_config_body_json(
+        R"({"ssid_2G":{"radioId":0,"ssid":[{"ssidName":"lab","pskKey":"secret"}]}})"
+    );
+    require(parsed.ok, parsed.error.c_str());
+    RecordingExecutor executor;
+    executor.reload_result = {false, true, "reload failed"};
+    openomada::openwrt::OpenWrtUciReconciler reconciler(caps(), executor);
+
+    const auto result = reconciler.apply(parsed.update);
+
+    require(!result.ok, "reload failure rejects apply");
+    require(result.changed, "reload failure changed UCI");
+    require(result.error == "reload failed", "reload error retained");
+    require(executor.batch_calls == 1, "batch called before reload");
+    require(executor.reload_calls == 1, "reload called");
+}
+
 } // namespace
 
 int main() {
@@ -199,6 +270,9 @@ int main() {
     test_passive_portal_free_policy_has_no_uci_changes();
     test_portal_and_wpa3_require_capabilities();
     test_uci_escaping_handles_apostrophes_and_backslashes();
+    test_reconciler_executes_batch_and_wifi_reload_without_shell_coupling();
+    test_reconciler_rejects_invalid_plan_before_executor();
+    test_reconciler_reports_reload_failure_after_batch();
     std::cout << "openomada-openwrt-uci-tests passed\n";
     return 0;
 }

@@ -3,6 +3,7 @@
 #include <string>
 #include <vector>
 
+#include "openomada/application/configuration_applier.hpp"
 #include "openomada/application/configuration.hpp"
 #include "openomada/platform/capabilities.hpp"
 
@@ -24,6 +25,36 @@ struct UciPlan {
     std::vector<std::string> commands{};
     std::vector<std::string> errors{};
     std::string warning{};
+};
+
+struct UciExecutionResult {
+    bool ok{false};
+    bool changed{false};
+    std::string error{};
+    std::size_t command_count{0};
+};
+
+class UciExecutor {
+public:
+    virtual ~UciExecutor() = default;
+    virtual UciExecutionResult apply_batch(const std::string& batch) = 0;
+    virtual UciExecutionResult reload_wifi() = 0;
+};
+
+class OpenWrtUciReconciler final : public application::ConfigurationApplier {
+public:
+    OpenWrtUciReconciler(
+        const platform::PlatformCapabilities& capabilities,
+        UciExecutor& executor,
+        UciPlanOptions options = {}
+    );
+
+    application::ConfigurationApplyResult apply(const application::AccessPointConfigUpdate& update) override;
+
+private:
+    platform::PlatformCapabilities capabilities_;
+    UciExecutor& executor_;
+    UciPlanOptions options_;
 };
 
 UciValidationResult validate_update(

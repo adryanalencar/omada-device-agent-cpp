@@ -245,6 +245,41 @@ std::vector<std::string> wlan_lines(
 
 } // namespace
 
+OpenWrtUciReconciler::OpenWrtUciReconciler(
+    const platform::PlatformCapabilities& capabilities,
+    UciExecutor& executor,
+    UciPlanOptions options
+) : capabilities_(capabilities), executor_(executor), options_(std::move(options)) {}
+
+application::ConfigurationApplyResult OpenWrtUciReconciler::apply(
+    const application::AccessPointConfigUpdate& update
+) {
+    const auto plan = build_uci_plan(update, capabilities_, options_);
+    if (!plan.ok) {
+        std::string error;
+        for (std::size_t index = 0; index < plan.errors.size(); ++index) {
+            if (index != 0) {
+                error += "; ";
+            }
+            error += plan.errors[index];
+        }
+        return {false, false, error.empty() ? "UCI plan rejected update" : error};
+    }
+    if (!plan.changed) {
+        return {true, false, {}};
+    }
+    const std::string batch = render_uci_batch(plan.commands);
+    auto batch_result = executor_.apply_batch(batch);
+    if (!batch_result.ok) {
+        return {false, batch_result.changed, batch_result.error.empty() ? "uci batch failed" : batch_result.error};
+    }
+    auto reload_result = executor_.reload_wifi();
+    if (!reload_result.ok) {
+        return {false, true, reload_result.error.empty() ? "wifi reload failed" : reload_result.error};
+    }
+    return {true, true, {}};
+}
+
 UciValidationResult validate_update(
     const application::AccessPointConfigUpdate& update,
     const platform::PlatformCapabilities& capabilities,

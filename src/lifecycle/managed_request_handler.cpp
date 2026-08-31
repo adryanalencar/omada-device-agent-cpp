@@ -42,6 +42,46 @@ transport::TransportStatus send_payload(
     return transport.send_payload(payload);
 }
 
+application::SetRequestEvaluation evaluate_set_request_with_optional_applier(
+    std::string_view payload,
+    application::ConfigurationApplier* applier
+) {
+    if (applier == nullptr) {
+        return application::evaluate_set_request(payload);
+    }
+
+    application::SetRequestEvaluation evaluation;
+    auto parsed = application::parse_set_request_json(payload);
+    evaluation.parsed = parsed.ok;
+    evaluation.update = std::move(parsed.update);
+    if (!parsed.ok) {
+        evaluation.errcode = application::kConfigError;
+        evaluation.error = std::move(parsed.error);
+        return evaluation;
+    }
+    if (!evaluation.update.unhandled_keys.empty()) {
+        evaluation.errcode = application::kConfigError;
+        evaluation.error = "unsupported keys: ";
+        for (std::size_t index = 0; index < evaluation.update.unhandled_keys.size(); ++index) {
+            if (index != 0) {
+                evaluation.error.push_back(',');
+            }
+            evaluation.error += evaluation.update.unhandled_keys[index];
+        }
+        return evaluation;
+    }
+    if (application::is_actionable_config(evaluation.update)) {
+        const auto applied = applier->apply(evaluation.update);
+        if (!applied.ok) {
+            evaluation.errcode = application::kConfigError;
+            evaluation.error = applied.error.empty() ? "configuration applier rejected update" : applied.error;
+            return evaluation;
+        }
+    }
+    evaluation.errcode = application::kConfigOk;
+    return evaluation;
+}
+
 } // namespace
 
 const char* to_string(ManagedRequestAction action) noexcept {
@@ -69,6 +109,17 @@ ManagedRequestResult handle_managed_request(
     std::string_view payload,
     std::uint64_t timestamp_ms
 ) {
+    return handle_managed_request(transport, settings, state, payload, nullptr, timestamp_ms);
+}
+
+ManagedRequestResult handle_managed_request(
+    transport::FrameTransport& transport,
+    const application::AgentSettings& settings,
+    ManagedState* state,
+    std::string_view payload,
+    application::ConfigurationApplier* applier,
+    std::uint64_t timestamp_ms
+) {
     if (state == nullptr) {
         return failed(protocol::MessageType::Discovery, "managed state is required");
     }
@@ -93,7 +144,7 @@ ManagedRequestResult handle_managed_request(
     result.request_type = *request_type;
 
     if (*request_type == protocol::MessageType::SetRequest) {
-        const auto evaluation = application::evaluate_set_request(payload);
+        const auto evaluation = evaluate_set_request_with_optional_applier(payload, applier);
         const auto body = application::build_set_response_body_json(
             payload,
             state->config_version.has_value()
@@ -123,6 +174,8 @@ ManagedRequestResult handle_managed_request(
         result.config_version = body.config_version;
         result.error = evaluation.error;
         if (evaluation.errcode == application::kConfigOk) {
+            result.configuration_applied = application::is_actionable_config(evaluation.update);
+            result.configuration_changed = result.configuration_applied;
             if (body.config_version >= 0 &&
                 body.config_version <= std::numeric_limits<std::uint32_t>::max()) {
                 state->config_version = static_cast<std::uint32_t>(body.config_version);

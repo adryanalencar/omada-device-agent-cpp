@@ -5,6 +5,7 @@
 #include <string>
 #include <string_view>
 
+#include "openomada/application/configuration_applier.hpp"
 #include "openomada/application/settings.hpp"
 #include "openomada/lifecycle/session.hpp"
 #include "openomada/protocol/message_type.hpp"
@@ -29,6 +30,8 @@ struct ManagedRequestResult {
     bool response_sent{false};
     bool should_clear_state{false};
     bool should_end_session{false};
+    bool configuration_applied{false};
+    bool configuration_changed{false};
     std::optional<std::int64_t> config_version{};
     std::optional<std::int64_t> sequence_id{};
     std::string error{};
@@ -41,6 +44,15 @@ ManagedRequestResult handle_managed_request(
     const application::AgentSettings& settings,
     ManagedState* state,
     std::string_view payload,
+    std::uint64_t timestamp_ms = 0
+);
+
+ManagedRequestResult handle_managed_request(
+    transport::FrameTransport& transport,
+    const application::AgentSettings& settings,
+    ManagedState* state,
+    std::string_view payload,
+    application::ConfigurationApplier* applier,
     std::uint64_t timestamp_ms = 0
 );
 

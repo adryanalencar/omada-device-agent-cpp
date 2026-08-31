@@ -405,7 +405,7 @@ bool JsonSessionStateRepository::clear() const {
     if (::unlink(path_.c_str()) == 0) {
         return true;
     }
-    return errno != ENOENT ? false : false;
+    return errno == ENOENT;
 }
 
 } // namespace openomada::persistence

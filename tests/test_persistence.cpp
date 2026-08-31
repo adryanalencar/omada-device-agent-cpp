@@ -88,7 +88,7 @@ void test_round_trip_does_not_persist_secrets() {
 
     require(repository.clear(), "state clears");
     require(!repository.load().found, "cleared state not found");
-    require(!repository.clear(), "second clear reports false");
+    require(repository.clear(), "second clear is idempotent");
     (void)::rmdir((dir + "/managed").c_str());
     (void)::rmdir(dir.c_str());
 }

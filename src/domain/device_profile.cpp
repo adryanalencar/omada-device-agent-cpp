@@ -24,7 +24,7 @@ AccessPointProfile::AccessPointProfile(application::AgentSettings settings)
           {"devInform", "2.0"},
       } {}
 
-std::string AccessPointProfile::device_info_json(bool is_factory, bool include_ip) const {
+std::string AccessPointProfile::device_info_json(bool is_factory, bool include_ip, bool include_factory_flag) const {
     std::string out = "{";
     bool comma = false;
     const auto add_comma = [&out, &comma]() {
@@ -38,9 +38,11 @@ std::string AccessPointProfile::device_info_json(bool is_factory, bool include_i
         out += "\"ip\":";
         out += quote(settings_.device_ip);
     }
-    add_comma();
-    out += "\"isFactory\":";
-    out += is_factory ? "true" : "false";
+    if (include_factory_flag) {
+        add_comma();
+        out += "\"isFactory\":";
+        out += is_factory ? "true" : "false";
+    }
     add_comma();
     out += "\"name\":";
     out += quote(settings_.device_name);
@@ -66,7 +68,7 @@ std::string AccessPointProfile::device_info_json(bool is_factory, bool include_i
 }
 
 std::string AccessPointProfile::adoption_device_info_json() const {
-    return device_info_json(false, false);
+    return device_info_json(false, false, false);
 }
 
 std::string AccessPointProfile::device_misc_json() const {
@@ -114,4 +116,3 @@ std::string controller_setting_json(std::string_view controller_id, std::string_
 }
 
 } // namespace openomada::domain
-

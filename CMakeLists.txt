@@ -16,9 +16,12 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(openomada_core STATIC
     src/crypto/ecsp_auth.cpp
     src/crypto/hash.cpp
+    src/crypto/random.cpp
     src/domain/device_profile.cpp
     src/domain/mac_address.cpp
     src/lifecycle/session.cpp
+    src/lifecycle/adoption.cpp
+    src/lifecycle/discovery.cpp
     src/protocol/ecsp_builders.cpp
     src/protocol/ecsp_message.cpp
     src/protocol/frame_codec.cpp
@@ -49,11 +52,12 @@ find_package(PkgConfig REQUIRED)
 pkg_check_modules(JSONC REQUIRED IMPORTED_TARGET json-c)
 target_link_libraries(openomada_core PUBLIC PkgConfig::JSONC)
 
-if(OPENOMADA_ENABLE_TLS)
-    pkg_check_modules(OPENSSL_TLS REQUIRED IMPORTED_TARGET openssl)
-    target_compile_definitions(openomada_core PUBLIC OPENOMADA_ENABLE_TLS=1)
-    target_link_libraries(openomada_core PUBLIC PkgConfig::OPENSSL_TLS)
+if(NOT OPENOMADA_ENABLE_TLS)
+    message(FATAL_ERROR "Phase 2 requires OPENOMADA_ENABLE_TLS=ON for TLS adoption and secure random generation")
 endif()
+pkg_check_modules(OPENSSL_TLS REQUIRED IMPORTED_TARGET openssl)
+target_compile_definitions(openomada_core PUBLIC OPENOMADA_ENABLE_TLS=1)
+target_link_libraries(openomada_core PUBLIC PkgConfig::OPENSSL_TLS)
 
 add_executable(openomada-agent-native
     src/cli/main.cpp
@@ -75,4 +79,13 @@ if(OPENOMADA_BUILD_TESTS)
         $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
     )
     add_test(NAME openomada-core-tests COMMAND openomada-core-tests)
+
+    add_executable(openomada-lifecycle-tests
+        tests/test_lifecycle_phase2.cpp
+    )
+    target_link_libraries(openomada-lifecycle-tests PRIVATE openomada_core)
+    target_compile_options(openomada-lifecycle-tests PRIVATE
+        $<$<CXX_COMPILER_ID:GNU,Clang,AppleClang>:-Wall -Wextra -Wpedantic -Wconversion>
+    )
+    add_test(NAME openomada-lifecycle-tests COMMAND openomada-lifecycle-tests)
 endif()
